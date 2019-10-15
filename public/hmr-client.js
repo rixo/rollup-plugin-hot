@@ -1,4 +1,6 @@
 {
+  const hmrFailedMessage = 'Cannot apply HMR update, full reload required'
+
   const depsMap = {}
   const acceptCallbacks = {}
   const disposeCallbacks = {}
@@ -122,34 +124,56 @@
     return existing
   }
 
-  const proto = System.constructor.prototype
-  const onload = proto.onload
-  proto.onload = function(...args) {
-    const [err, id, deps] = args
-    if (!err) {
-      // console.log('onload', id, deps)
-      // const baseUrl = System.resolve('/')
-      // const relative = url => {
-      //   if (url.substring(0, baseUrl.length) === baseUrl) {
-      //     return url.substr(baseUrl.length - 1)
-      //   } else {
-      //     return url
-      //   }
-      // }
-      const relative = x => x
-      const relativeId = relative(id)
-      deps.forEach(dep => {
-        const rel = relative(dep)
-        const entry = getDepsEntry(rel)
-        entry.push(relativeId)
-      })
+  {
+    const proto = System.constructor.prototype
+
+    const resolve = proto.resolve
+    proto.resolve = function(...args) {
+      const [id, parentUrl] = args
+      if (id === '@@hot') {
+        const url = `${parentUrl}@@hot`
+        if (!System.has(url)) {
+          // TODO shouldn't this work?? (without requiring named exports)
+          // System.set(url, { accept, dispose })
+          const accept = (...args) => {
+            System.__hot.accept(parentUrl, ...args)
+          }
+          const dispose = (...args) => {
+            System.__hot.dispose(parentUrl, ...args)
+          }
+          System.register(url, [], function(exports) {
+            'use strict'
+            return {
+              execute: function() {
+                exports('accept', accept)
+                exports('dispose', dispose)
+              },
+            }
+          })
+        }
+        return url
+      } else {
+        return resolve.apply(this, args)
+      }
     }
-    return onload.apply(this, args)
+
+    const onload = proto.onload
+    proto.onload = function(...args) {
+      const [err, id, deps] = args
+      if (!err) {
+        // TODO building this reverse lookup map is probably overkill
+        deps.forEach(dep => {
+          const entry = getDepsEntry(dep)
+          entry.push(id)
+        })
+      }
+      return onload.apply(this, args)
+    }
   }
 
   const ws = new WebSocket(`ws://${location.hostname}:38670`)
 
-  const verboseLog = console.log.bind(console)
+  const verboseLog = console.log.bind(console, '[HMR]')
 
   ws.onmessage = function(e) {
     var hot = JSON.parse(e.data)
@@ -163,49 +187,32 @@
     }
 
     if (hot.changes) {
-      verboseLog('Changes Received', hot.changes)
+      verboseLog('Apply changes...')
 
-      hot.changes.forEach(name => {
-        // const id = System.resolve(name)
-        // if (depsMap[id]) {
-        //   depsMap[id].forEach(depId => {
-        //     // TODO dispose
-        //     System.delete(depId)
-        //     hmrDisposeCallback(depId)
-        //   })
-        //   delete depsMap[id]
-        // }
-        // // const load = System.get(id)
-        // System.delete(id)
-        // hmrDisposeCallback(id)
-
-        // TODO accept
-        // System.import(name)
-
-        // if (!change.removed) {
-        const accepted = hmrAcceptCallback(System.resolve(name))
-        if (accepted) {
-          flush()
-        } else {
-          // TODO full reload
-          console.log('Cannot apply HMR update, full reload required')
-          window.location.reload()
-        }
-        // }
-
-        // System.reload(System.resolve(name))
-      })
-
-      // hot.changes.forEach(function (change) {
-      //     hmrDisposeCallback(change.id);
-      //
-      //     if (!change.removed) {
-      //         modules[change.id] = eval('(' + change.code + ')');
-      //         hmrAcceptCallback(change.id);
-      //     }
-      // });
-      //
-      // setHotStatus('idle')
+      Promise.all(
+        hot.changes
+          .map(name => System.resolve(name))
+          .filter(id => System.has(id))
+          .map(async id => {
+            // if (!change.removed) {
+            const accepted = hmrAcceptCallback(id)
+            if (accepted) {
+              await flush()
+            } else {
+              // TODO full reload
+              verboseLog(hmrFailedMessage)
+              window.location.reload()
+            }
+            // }
+          })
+      )
+        .then(() => {
+          verboseLog('Up to date')
+        })
+        .catch(err => {
+          console.error((err && err.stack) || err)
+          verboseLog(hmrFailedMessage)
+        })
     }
   }
 }
