@@ -1,5 +1,4 @@
 import 'systemjs/dist/system.js'
-import 'systemjs/dist/extras/named-register.js'
 
 const hmrFailedMessage = 'Cannot apply HMR update, full reload required'
 
@@ -133,29 +132,55 @@ const getDepsEntry = id => {
     const [id, parentUrl] = args
     if (id === '@@hot') {
       const url = `${parentUrl}@@hot`
-      if (!System.has(url)) {
-        // TODO shouldn't this work?? (without requiring named exports)
-        // System.set(url, { accept, dispose })
-        const accept = (...args) => {
-          System.__hot.accept(parentUrl, ...args)
-        }
-        const dispose = (...args) => {
-          System.__hot.dispose(parentUrl, ...args)
-        }
-        System.register(url, [], function(exports) {
-          'use strict'
-          return {
-            execute: function() {
-              exports('accept', accept)
-              exports('dispose', dispose)
-            },
-          }
-        })
-      }
+      // if (!System.has(url)) {
+      //   const accept = (...args) => {
+      //     System.__hot.accept(parentUrl, ...args)
+      //   }
+      //   const dispose = (...args) => {
+      //     System.__hot.dispose(parentUrl, ...args)
+      //   }
+      //
+      //   // TODO shouldn't this work?? (without requiring named exports)
+      //   //
+      //   // System.set(url, { accept, dispose })
+      //
+      //   // TODO (report) this triggers a very subtle race condition where
+      //   // getRegister resolves the "virtual" (named) module in place of
+      //   // another one that has just loaded
+      //   //
+      //   // System.register(url, [], function(exports) {
+      //   //   'use strict'
+      //   //   return {
+      //   //     execute: function() {
+      //   //       exports({ accept, dispose })
+      //   //     },
+      //   //   }
+      //   // })
+      // }
       return url
     } else {
       return resolve.apply(this, args)
     }
+  }
+
+  const instantiate = proto.instantiate
+  proto.instantiate = function(...args) {
+    const [url, firstParentUrl] = args
+    if (url.substr(-5) === '@@hot') {
+      // NOTE see above, this is what ended up working
+      return [
+        [],
+        exports => ({
+          execute() {
+            const parentUrl = firstParentUrl
+            const accept = (..._) => System.__hot.accept(parentUrl, ..._)
+            const dispose = (..._) => System.__hot.dispose(parentUrl, ..._)
+            exports({ accept, dispose })
+          },
+        }),
+      ]
+    }
+    return instantiate.apply(this, args)
   }
 
   const onload = proto.onload
