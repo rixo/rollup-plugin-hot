@@ -14,8 +14,7 @@
     "rollup-plugin-hot": "file:.."
   },
   "dependencies": {
-    "sirv-cli": "^0.4.4",
-    "systemjs": "rixo/systemjs#reload"
+    "sirv-cli": "^0.4.4"
   },
   "scripts": {
     "build": "rollup -c",

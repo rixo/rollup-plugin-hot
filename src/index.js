@@ -1,3 +1,6 @@
+import 'systemjs/dist/system.js'
+import 'systemjs/dist/extras/named-register.js'
+
 const hmrFailedMessage = 'Cannot apply HMR update, full reload required'
 
 const depsMap = {}
