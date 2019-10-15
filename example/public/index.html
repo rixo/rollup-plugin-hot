@@ -8,18 +8,7 @@
 
     <link rel="icon" type="image/png" href="/favicon.png" />
 
-    <!-- bundles SystemJS (good idea?) -->
-    <script src="http://localhost:38670/hmr-client.js"></script>
-
-    <script defer>
-      ;(async () => {
-        try {
-          await System.import('./bundle/main.js')
-        } catch (err) {
-          console.error((err && err.stack) || err)
-        }
-      })()
-    </script>
+    <script defer src="/bundle.js"></script>
   </head>
 
   <body></body>

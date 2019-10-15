@@ -6,13 +6,12 @@ export default {
   output: {
     sourcemap: 'inline',
     format: 'iife',
-    // file: 'public/bundle.js',
-    dir: 'public/bundle',
+    file: 'public/bundle.js',
   },
   plugins: [
     hmr({
       hot: true,
-      baseUrl: '/bundle/',
+      public: 'public',
     }),
   ],
   watch: {
