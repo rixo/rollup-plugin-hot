@@ -536,9 +536,16 @@ resolve@^1.10.0:
   dependencies:
     path-parse "^1.0.6"
 
-rollup@^1.23.1:
-  version "1.23.1"
-  resolved "https://registry.yarnpkg.com/rollup/-/rollup-1.23.1.tgz#0315a0f5d0dfb056e6363e1dff05b89ac2da6b8e"
+"rollup-plugin-hot@file:..":
+  version "0.0.0"
+  dependencies:
+    express "^4.17.1"
+    sirv-cli "^0.4.4"
+    ws "^7.1.2"
+
+rollup@^1.24.0:
+  version "1.24.0"
+  resolved "https://registry.yarnpkg.com/rollup/-/rollup-1.24.0.tgz#0ace969508babb7a5fcb228e831e9c9a2873c2b0"
   dependencies:
     "@types/estree" "*"
     "@types/node" "*"
@@ -683,6 +690,10 @@ supports-color@^5.3.0:
   resolved "https://registry.yarnpkg.com/supports-color/-/supports-color-5.5.0.tgz#e2e69a44ac8772f78a1ec0b35b689df6530efc8f"
   dependencies:
     has-flag "^3.0.0"
+
+systemjs@rixo/systemjs#reload:
+  version "6.0.0"
+  resolved "https://codeload.github.com/rixo/systemjs/tar.gz/d18361e8fb63a4db166f375a629ae5b92e80d9e2"
 
 tinydate@^1.0.0:
   version "1.2.0"
