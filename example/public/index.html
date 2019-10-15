@@ -11,9 +11,10 @@
     <script src="/systemjs/system.js"></script>
     <script src="/systemjs/extras/named-register.js"></script>
     <script src="/systemjs/extras/reload.js"></script>
-    <script src="/hmr-client.js"></script>
 
-    <script>
+    <script src="http://localhost:38670/hmr-client.js"></script>
+
+    <script defer>
       ;(async () => {
         try {
           await System.import('./bundle/main.js')

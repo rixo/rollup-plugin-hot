@@ -15,5 +15,10 @@
   },
   "peerDependencies": {
     "systemjs": "rixo/systemjs#reload"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "autobuild": "rollup -c -w",
+    "dev": "npm run autobuild"
   }
 }
