@@ -5,7 +5,7 @@ const hmrFailedMessage = 'Cannot apply HMR update, full reload required'
 const depsMap = {}
 const acceptCallbacks = {}
 const disposeCallbacks = {}
-const hot = {
+const systemHot = {
   accept: (id, cb = true) => {
     acceptCallbacks[id] = cb
   },
@@ -13,9 +13,6 @@ const hot = {
     disposeCallbacks[id] = cb
   },
 }
-System.__hot = hot
-
-const hmrDisposeCallback = id => {}
 
 let invalidated = {}
 let reloadQueue = []
@@ -79,7 +76,7 @@ const doFlush = async () => {
     currentReloadQueue.map(async id => {
       const acceptCb = acceptCallbacks[id]
       delete acceptCallbacks[id]
-      const module = await System.reload(id) // TODO error handling
+      await System.reload(id) // TODO error handling
       if (typeof acceptCb === 'function') {
         acceptCb()
       }
@@ -89,7 +86,7 @@ const doFlush = async () => {
 
 const flush = () => (flushPromise = Promise.resolve(flushPromise).then(doFlush))
 
-const hmrAcceptCallback = (id, soft = false) => {
+const hmrAcceptCallback = id => {
   const parentIds = depsMap[id]
 
   invalidate(id)
@@ -106,9 +103,10 @@ const hmrAcceptCallback = (id, soft = false) => {
 
   let every = true
   for (const pid of parentIds) {
+    // TODO these modules don't need a reload, just refreshing their
+    //      bindings + execute again
     const accepted = hmrAcceptCallback(pid, true)
     if (!accepted) {
-      console.log('unaccepted', pid)
       every = false
     }
   }
@@ -130,14 +128,14 @@ const getDepsEntry = id => {
   const resolve = proto.resolve
   proto.resolve = function(...args) {
     const [id, parentUrl] = args
-    if (id === '@@hot') {
-      const url = `${parentUrl}@@hot`
+    if (id === '@hot') {
+      const url = `${parentUrl}@hot`
       // if (!System.has(url)) {
       //   const accept = (...args) => {
-      //     System.__hot.accept(parentUrl, ...args)
+      //     systemHot.accept(parentUrl, ...args)
       //   }
       //   const dispose = (...args) => {
-      //     System.__hot.dispose(parentUrl, ...args)
+      //     systemHot.dispose(parentUrl, ...args)
       //   }
       //
       //   // TODO shouldn't this work?? (without requiring named exports)
@@ -166,15 +164,15 @@ const getDepsEntry = id => {
   const instantiate = proto.instantiate
   proto.instantiate = function(...args) {
     const [url, firstParentUrl] = args
-    if (url.substr(-5) === '@@hot') {
+    if (/@hot$/.test(url)) {
       // NOTE see above, this is what ended up working
       return [
         [],
         exports => ({
           execute() {
             const parentUrl = firstParentUrl
-            const accept = (..._) => System.__hot.accept(parentUrl, ..._)
-            const dispose = (..._) => System.__hot.dispose(parentUrl, ..._)
+            const accept = (..._) => systemHot.accept(parentUrl, ..._)
+            const dispose = (..._) => systemHot.dispose(parentUrl, ..._)
             exports({ accept, dispose })
           },
         }),
@@ -199,10 +197,14 @@ const getDepsEntry = id => {
 
 const ws = new WebSocket(`ws://${location.hostname}:38670`)
 
+// eslint-disable-next-line no-console
 const verboseLog = console.log.bind(console, '[HMR]')
 
+// eslint-disable-next-line no-console
+const logError = console.error.bind(console, '[HMR]')
+
 ws.onmessage = function(e) {
-  var hot = JSON.parse(e.data)
+  const hot = JSON.parse(e.data)
 
   if (hot.greeting) {
     verboseLog('Enabled')
@@ -236,7 +238,7 @@ ws.onmessage = function(e) {
         verboseLog('Up to date')
       })
       .catch(err => {
-        console.error((err && err.stack) || err)
+        logError((err && err.stack) || err)
         verboseLog(hmrFailedMessage)
       })
   }
