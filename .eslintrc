@@ -2,6 +2,9 @@ extends:
   - '@rixo'
 
 overrides:
+  - files: ["lib/**/*"]
+    env:
+      node: true
   - files: ["src/**/*", "example/src/**/*"]
     env:
       browser: true
