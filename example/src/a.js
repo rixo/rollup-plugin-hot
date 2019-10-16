@@ -3,5 +3,4 @@ export const a = 'foo'
 
 export default () => {
   window.a = a
-  console.trace()
 }

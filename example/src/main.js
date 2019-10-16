@@ -1,8 +1,15 @@
-import * as hot from '@@hot'
+import * as hot from '@hot'
 
-import A, { a } from './a'
+import { a } from './a'
 import B from './b'
 
-console.log('main >>>', B(a))
+const el = document.createElement('pre')
+
+el.innerHTML = `Hello ${B(a)}`
+
+document.body.append(el)
 
 hot.accept()
+hot.dispose(() => {
+  el.remove()
+})
