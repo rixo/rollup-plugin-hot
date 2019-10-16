@@ -1114,14 +1114,16 @@
 
     const instantiate = proto.instantiate;
     proto.instantiate = function(...args) {
-      const [url, firstParentUrl] = args;
-      if (/@hot$/.test(url)) {
+      const [url, firstParentUrl] = args; // eslint-disable-line no-unused-vars
+      const match = /^(.+)@hot$/.exec(url);
+      if (match) {
+        // can this be different from firstParentUrl?
+        const parentUrl = match[1];
         // NOTE see above, this is what ended up working
         return [
           [],
           exports => ({
             execute() {
-              const parentUrl = firstParentUrl;
               const accept = (..._) => systemHot.accept(parentUrl, ..._);
               const dispose = (..._) => systemHot.dispose(parentUrl, ..._);
               exports({ accept, dispose });
