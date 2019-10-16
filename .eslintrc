@@ -1,0 +1,11 @@
+extends:
+  - '@rixo'
+
+overrides:
+  - files: ["src/**/*", "example/src/**/*"]
+    env:
+      browser: true
+    globals:
+      System: readonly
+    rules:
+      import/no-unresolved: [error, { ignore: ['^@hot$']}]
