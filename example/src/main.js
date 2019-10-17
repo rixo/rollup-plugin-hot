@@ -1,5 +1,3 @@
-import * as hot from '@hot'
-
 import { a } from './a'
 import B from './b'
 
@@ -11,7 +9,15 @@ document.body.append(el)
 
 // throw new Error()
 
-hot.accept()
-hot.dispose(() => {
+// Funnily, this works:
+//
+// import('./a')
+// module.meta.accept()
+// module.meta.dispose(() => {
+//   el.remove()
+// })
+
+import.meta.accept()
+import.meta.dispose(() => {
   el.remove()
 })
