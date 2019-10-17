@@ -1,6 +1,9 @@
 import 'systemjs/dist/system.js'
+import ErrorOverlay from './overlay'
 
 const hmrFailedMessage = 'Cannot apply HMR update, full reload required'
+
+const overlay = ErrorOverlay()
 
 const depsMap = {}
 const acceptCallbacks = {}
@@ -199,25 +202,34 @@ const getDepsEntry = id => {
 
 const ws = new WebSocket(`ws://${location.hostname}:38670`)
 
-// eslint-disable-next-line no-console
-const verboseLog = console.log.bind(console, '[HMR]')
-
-// eslint-disable-next-line no-console
-const logError = console.error.bind(console, '[HMR]')
+const logPrefix = '[HMR]'
+/* eslint-disable no-console */
+const verboseLog = console.debug.bind(console, logPrefix)
+const log = console.log.bind(console, logPrefix)
+const logError = console.error.bind(console, logPrefix)
+/* eslint-enable no-console */
 
 ws.onmessage = function(e) {
   const hot = JSON.parse(e.data)
 
   if (hot.greeting) {
-    verboseLog('Enabled')
+    log('Enabled')
   }
 
   if (hot.status) {
+    switch (hot.status) {
+      case 'prepare':
+        log('Rebuilding...')
+        break
+    }
     // setHotStatus(hot.status)
   }
 
   if (hot.changes) {
     verboseLog('Apply changes...')
+
+    overlay.setCompileError(null)
+    overlay.clearErrors()
 
     Promise.all(
       hot.changes
@@ -230,18 +242,26 @@ ws.onmessage = function(e) {
             await flush()
           } else {
             // TODO full reload
-            verboseLog(hmrFailedMessage)
+            log(hmrFailedMessage)
             window.location.reload()
           }
           // }
         })
     )
       .then(() => {
-        verboseLog('Up to date')
+        log('Up to date')
       })
       .catch(err => {
         logError((err && err.stack) || err)
-        verboseLog(hmrFailedMessage)
+        log(hmrFailedMessage)
       })
+  }
+
+  if (hot.errors) {
+    const { build } = hot.errors
+    if (build) {
+      log('Build error', build)
+      overlay.setCompileError(build.formatted || build)
+    }
   }
 }

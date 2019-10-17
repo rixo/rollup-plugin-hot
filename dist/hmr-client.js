@@ -951,7 +951,134 @@
 
   }());
 
+  const removeElement = el => el && el.parentNode && el.parentNode.removeChild(el);
+
+  const ErrorOverlay = () => {
+    let errors = [];
+    let compileError = null;
+
+    const errorsTitle = 'Failed to init component';
+    const compileErrorTitle = 'Failed to compile';
+
+    const style = {
+      section: `
+      display: none;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 32px;
+      background: rgba(0, 0, 0, .85);
+      font-family: Menlo, Consolas, monospace;
+      font-size: large;
+      color: rgb(232, 232, 232);
+      overflow: auto;
+    `,
+      h1: `
+      margin-top: 0;
+      color: #E36049;
+      font-size: large;
+      font-weight: normal;
+    `,
+      h2: `
+      margin: 32px 0 0;
+      font-size: large;
+      font-weight: normal;
+    `,
+      pre: ``,
+    };
+
+    const createOverlay = () => {
+      const h1 = document.createElement('h1');
+      h1.style = style.h1;
+      const section = document.createElement('section');
+      section.appendChild(h1);
+      section.style = style.section;
+      const body = document.createElement('div');
+      section.appendChild(body);
+      const target = document.body;
+      target.appendChild(section);
+      return { h1, el: section, body }
+    };
+
+    const setTitle = title => {
+      overlay.h1.textContent = title;
+    };
+
+    const show = () => {
+      overlay.el.style.display = 'block';
+    };
+
+    const hide = () => {
+      overlay.el.style.display = 'none';
+    };
+
+    const update = () => {
+      if (compileError) {
+        overlay.body.innerHTML = '';
+        setTitle(compileErrorTitle);
+        const errorEl = renderError(compileError);
+        overlay.body.appendChild(errorEl);
+        show();
+      } else if (errors.length > 0) {
+        overlay.body.innerHTML = '';
+        setTitle(errorsTitle);
+        errors.forEach(({ title, message }) => {
+          const errorEl = renderError(message, title);
+          overlay.body.appendChild(errorEl);
+        });
+        show();
+      } else {
+        hide();
+      }
+    };
+
+    const renderError = (message, title) => {
+      const div = document.createElement('div');
+      if (title) {
+        const h2 = document.createElement('h2');
+        h2.textContent = title;
+        h2.style = style.h2;
+        div.appendChild(h2);
+      }
+      const pre = document.createElement('pre');
+      pre.textContent = message;
+      div.appendChild(pre);
+      return div
+    };
+
+    const addError = (error, title) => {
+      const message = (error && error.stack) || error;
+      errors.push({ title, message });
+      update();
+    };
+
+    const clearErrors = () => {
+      errors.forEach(({ element }) => {
+        removeElement(element);
+      });
+      errors = [];
+      update();
+    };
+
+    const setCompileError = message => {
+      compileError = message;
+      update();
+    };
+
+    const overlay = createOverlay();
+
+    return {
+      addError,
+      clearErrors,
+      setCompileError,
+    }
+  };
+
   const hmrFailedMessage = 'Cannot apply HMR update, full reload required';
+
+  const overlay = ErrorOverlay();
 
   const depsMap = {};
   const acceptCallbacks = {};
@@ -1150,23 +1277,34 @@
 
   const ws = new WebSocket(`ws://${location.hostname}:38670`);
 
-  // eslint-disable-next-line no-console
-  const verboseLog = console.log.bind(console, '[HMR]');
-
-  // eslint-disable-next-line no-console
-  const logError = console.error.bind(console, '[HMR]');
+  const logPrefix = '[HMR]';
+  /* eslint-disable no-console */
+  const verboseLog = console.debug.bind(console, logPrefix);
+  const log = console.log.bind(console, logPrefix);
+  const logError = console.error.bind(console, logPrefix);
+  /* eslint-enable no-console */
 
   ws.onmessage = function(e) {
     const hot = JSON.parse(e.data);
 
     if (hot.greeting) {
-      verboseLog('Enabled');
+      log('Enabled');
     }
 
-    if (hot.status) ;
+    if (hot.status) {
+      switch (hot.status) {
+        case 'prepare':
+          log('Rebuilding...');
+          break
+      }
+      // setHotStatus(hot.status)
+    }
 
     if (hot.changes) {
       verboseLog('Apply changes...');
+
+      overlay.setCompileError(null);
+      overlay.clearErrors();
 
       Promise.all(
         hot.changes
@@ -1179,19 +1317,27 @@
               await flush();
             } else {
               // TODO full reload
-              verboseLog(hmrFailedMessage);
+              log(hmrFailedMessage);
               window.location.reload();
             }
             // }
           })
       )
         .then(() => {
-          verboseLog('Up to date');
+          log('Up to date');
         })
         .catch(err => {
           logError((err && err.stack) || err);
-          verboseLog(hmrFailedMessage);
+          log(hmrFailedMessage);
         });
+    }
+
+    if (hot.errors) {
+      const { build } = hot.errors;
+      if (build) {
+        log('Build error', build);
+        overlay.setCompileError(build.formatted || build);
+      }
     }
   };
 
