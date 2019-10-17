@@ -9,6 +9,8 @@ el.innerHTML = `Hello ${B(a)}`
 
 document.body.append(el)
 
+// throw new Error()
+
 hot.accept()
 hot.dispose(() => {
   el.remove()

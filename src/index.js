@@ -59,18 +59,18 @@ const doFlush = async () => {
       delete disposeCallbacks[id]
       delete depsMap[id]
       if (typeof disposeCb === 'function') {
-        disposeCb()
+        await disposeCb()
       }
     })
   )
   await Promise.all(
-    invalidList.map(id => {
+    invalidList.map(async id => {
       const disposeCb = disposeCallbacks[id]
       delete acceptCallbacks[id]
       delete disposeCallbacks[id]
       delete depsMap[id]
       if (typeof disposeCb === 'function') {
-        disposeCb()
+        await disposeCb()
       }
       System.delete(id)
     })
@@ -81,7 +81,7 @@ const doFlush = async () => {
       delete acceptCallbacks[id]
       await System.reload(id) // TODO error handling
       if (typeof acceptCb === 'function') {
-        acceptCb()
+        await acceptCb()
       }
     })
   )
@@ -236,16 +236,21 @@ ws.onmessage = function(e) {
         .map(name => System.resolve(name))
         .filter(id => System.has(id))
         .map(async id => {
-          // if (!change.removed) {
-          const accepted = hmrAcceptCallback(id)
-          if (accepted) {
-            await flush()
-          } else {
-            // TODO full reload
-            log(hmrFailedMessage)
-            window.location.reload()
+          try {
+            // if (!change.removed) {
+            const accepted = hmrAcceptCallback(id)
+            if (accepted) {
+              await flush()
+            } else {
+              // TODO full reload
+              log(hmrFailedMessage)
+              window.location.reload()
+            }
+            // }
+          } catch (err) {
+            overlay.addError(err)
+            throw err
           }
-          // }
         })
     )
       .then(() => {
@@ -260,7 +265,7 @@ ws.onmessage = function(e) {
   if (hot.errors) {
     const { build } = hot.errors
     if (build) {
-      log('Build error', build)
+      log('Build error!')
       overlay.setCompileError(build.formatted || build)
     }
   }
