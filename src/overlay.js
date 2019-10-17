@@ -4,7 +4,7 @@ const ErrorOverlay = () => {
   let errors = []
   let compileError = null
 
-  const errorsTitle = 'Failed to init component'
+  const errorsTitle = 'Failed to init module'
   const compileErrorTitle = 'Failed to compile'
 
   const style = {
