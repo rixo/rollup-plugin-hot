@@ -2,9 +2,7 @@ import 'systemjs/dist/system.js'
 
 import installSystemHooks from './system-hooks'
 import createWebSocketClient from './client'
-
-const depsMap = {}
-const importersMap = {}
+import { setDeps, forgetDeps, getImporters } from './deps-map'
 
 const acceptCallbacks = {}
 const disposeCallbacks = {}
@@ -80,7 +78,7 @@ const flush = serial(async function doFlush() {
 })
 
 const applyUpdate = (id, forceReload = false) => {
-  const parentIds = importersMap[id]
+  const parentIds = getImporters(id)
 
   if (forceReload) {
     scheduleReload(id)
@@ -109,37 +107,6 @@ const applyUpdate = (id, forceReload = false) => {
   }
 
   return every
-}
-
-const getImporterEntry = id => {
-  const existing = importersMap[id]
-  if (!existing) {
-    return (importersMap[id] = [])
-  }
-  return existing
-}
-
-// TODO building this reverse lookup map is probably overkill
-const setDeps = (id, deps) => {
-  depsMap[id] = deps
-  deps.forEach(dep => {
-    const entry = getImporterEntry(dep)
-    entry.push(id)
-  })
-}
-
-const forgetDeps = id => {
-  const deps = depsMap[id]
-  if (deps) {
-    delete depsMap[id]
-    for (const dep of deps) {
-      const importerDeps = importersMap[dep]
-      if (!importerDeps) continue
-      const index = importerDeps.indexOf(id)
-      if (index < 0) continue
-      importerDeps.splice(index, 1)
-    }
-  }
 }
 
 installSystemHooks({ hot, setDeps })
