@@ -5,7 +5,7 @@ export default {
   output: {
     sourcemap: true,
     format: 'iife',
-    file: 'dist/hmr-client.js',
+    file: 'dist/hmr-runtime.js',
   },
   plugins: [
     resolve({

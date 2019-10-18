@@ -951,6 +951,28 @@
 
   }());
 
+  var installSystemHooks = ({ hot, setDeps }) => {
+    const proto = System.constructor.prototype;
+
+    const createContext = proto.createContext;
+    proto.createContext = function(...args) {
+      const [url] = args;
+      return {
+        ...createContext.apply(this, args),
+        hot: { id: url, ...hot },
+      }
+    };
+
+    const onload = proto.onload;
+    proto.onload = function(...args) {
+      const [err, id, deps] = args;
+      if (!err) {
+        setDeps(id, deps);
+      }
+      return onload.apply(this, args)
+    };
+  };
+
   const removeElement = el => el && el.parentNode && el.parentNode.removeChild(el);
 
   const ErrorOverlay = () => {
@@ -1076,102 +1098,184 @@
     }
   };
 
-  const hmrFailedMessage = 'Cannot apply HMR update, full reload required';
+  /* eslint-disable no-console */
+  const logPrefix = '[HMR]';
 
-  const overlay = ErrorOverlay();
+  const info = console.info.bind(console, logPrefix);
+
+  const log = console.log.bind(console, logPrefix);
+
+  const error = console.error.bind(console, logPrefix);
+
+  const clear = console.clear.bind(console);
+
+  const hmrFailedMessage = 'Cannot apply HMR update';
+
+  var createWebSocketClient = ({ applyUpdate, flush, noFullReload = false, port = 38670 }) => {
+    const overlay = ErrorOverlay();
+
+    let clearConsole = false;
+
+    const doFullReload = msg => {
+      // yes, the log message is only visible with something like preserveLog
+      const action = noFullReload ? 'full reload needed' : 'doing a full reload';
+      log(`${msg}, ${action}`);
+      window.location.reload();
+    };
+
+    const ws = new WebSocket(`ws://${location.hostname}:${port}`);
+
+    ws.onmessage = function(e) {
+      const hot = JSON.parse(e.data);
+
+      if (hot.greeting) {
+        log('Enabled');
+        clearConsole = hot.greeting.clearConsole;
+      }
+
+      if (hot.status) {
+        switch (hot.status) {
+          case 'prepare':
+            log('Rebuilding...');
+            break
+        }
+      }
+
+      if (hot.changes) {
+
+        info('Apply changes...');
+
+        overlay.setCompileError(null);
+        overlay.clearErrors();
+
+        Promise.all(
+          hot.changes
+            .map(name => System.resolve(name))
+            .filter(id => System.has(id))
+            .map(async id => {
+              try {
+                return applyUpdate(id, true)
+              } catch (err) {
+                overlay.addError(err);
+                throw err
+              }
+            })
+        )
+          .then(async accepted => {
+            if (accepted) {
+              await flush();
+            } else {
+              doFullReload(hmrFailedMessage);
+            }
+            if (clearConsole) {
+              clear();
+            }
+            log('Up to date');
+          })
+          .catch(err => {
+            error((err && err.stack) || err);
+            log(hmrFailedMessage);
+          });
+      }
+
+      if (hot.errors) {
+        const { build } = hot.errors;
+        if (build) {
+          log('Build error!');
+          overlay.setCompileError(build.formatted || build);
+        }
+      }
+    };
+  };
 
   const depsMap = {};
+  const importersMap = {};
+
   const acceptCallbacks = {};
   const disposeCallbacks = {};
-  const systemHot = {
+
+  const hot = {
     accept(cb = true) {
-      acceptCallbacks[this.url] = cb;
+      acceptCallbacks[this.id] = cb;
     },
     dispose(cb = true) {
-      disposeCallbacks[this.url] = cb;
+      disposeCallbacks[this.id] = cb;
     },
   };
 
-  let invalidated = {};
-  let reloadQueue = [];
+  const serial = handler => {
+    let promise;
+    return () => (promise = promise ? promise.then(handler) : handler())
+  };
 
-  const invalidate = id => {
-    if (invalidated[id]) {
-      invalidated[id]++;
+  let queue = [];
+  let queueMap = {};
+
+  const invalidate = (id, reload = false, rerun = true) => {
+    const item = queueMap[id];
+    if (item) {
+      queue.splice(item.index, 1);
+      item.index = queue.length;
+      if (reload) {
+        item.reload = true;
+      } else if (rerun) {
+        item.rerun = true;
+      }
+      queue.push(item);
     } else {
-      invalidated[id] = 1;
+      const item = { index: queue.length, id, reload, rerun };
+      queueMap[id] = item;
+      queue.push(item);
     }
   };
 
-  const scheduleReload = id => {
-    const index = reloadQueue.indexOf(id);
-    if (index > -1) {
-      reloadQueue.splice(index, 1);
-    }
-    reloadQueue.push(id);
-  };
+  const scheduleRerun = id => invalidate(id, false, true);
 
-  const compareValueAsc = ([, a], [, b]) => a - b;
+  const scheduleReload = id => invalidate(id, true);
 
-  const getKey = ([k]) => k;
+  const flush = serial(async function doFlush() {
+    const currentQueue = queue;
 
-  const notIn = list => x => !list.includes(x);
+    queue = [];
+    queueMap = {};
 
-  let flushPromise;
-
-  const doFlush = async () => {
-    const currentReloadQueue = reloadQueue;
-    const currentInvalidated = invalidated;
-    reloadQueue = [];
-    invalidated = [];
-    const invalidList = Object.entries(currentInvalidated)
-      .sort(compareValueAsc)
-      .map(getKey)
-      .filter(notIn(currentReloadQueue));
-    await Promise.all(
-      currentReloadQueue.map(async id => {
-        const disposeCb = disposeCallbacks[id];
-        delete disposeCallbacks[id];
-        delete depsMap[id];
-        if (typeof disposeCb === 'function') {
-          await disposeCb();
-        }
-      })
-    );
-    await Promise.all(
-      invalidList.map(async id => {
-        const disposeCb = disposeCallbacks[id];
+    // for (const { id, reload, rerun } of currentQueue) {
+    for (const { id, reload: realReload, rerun } of currentQueue) {
+      // TODO rerun is implemented as reload for now, short of a better solution
+      const reload = realReload || rerun;
+      const disposeCb = disposeCallbacks[id];
+      if (reload || rerun) {
         delete acceptCallbacks[id];
         delete disposeCallbacks[id];
-        delete depsMap[id];
-        if (typeof disposeCb === 'function') {
-          await disposeCb();
+        if (reload) {
+          forgetDeps(id);
         }
+      }
+      if (typeof disposeCb === 'function') {
+        await disposeCb();
+      }
+      if (reload) {
+        await System.reload(id);
+      } else if (rerun) {
+        throw new Error('TODO')
+      } else {
         System.delete(id);
-      })
-    );
-    await Promise.all(
-      currentReloadQueue.map(async id => {
-        const acceptCb = acceptCallbacks[id];
-        delete acceptCallbacks[id];
-        await System.reload(id); // TODO error handling
-        if (typeof acceptCb === 'function') {
-          await acceptCb();
-        }
-      })
-    );
-  };
+      }
+    }
+  });
 
-  const flush = () => (flushPromise = Promise.resolve(flushPromise).then(doFlush));
+  const applyUpdate = (id, forceReload = false) => {
+    const parentIds = importersMap[id];
 
-  const hmrAcceptCallback = id => {
-    const parentIds = depsMap[id];
-
-    invalidate(id);
+    if (forceReload) {
+      scheduleReload(id);
+    } else {
+      invalidate(id);
+    }
 
     const accepted = acceptCallbacks[id];
     if (accepted) {
-      scheduleReload(id);
+      scheduleRerun(id);
       return true
     }
 
@@ -1183,7 +1287,7 @@
     for (const pid of parentIds) {
       // TODO these modules don't need a reload, just refreshing their
       //      bindings + execute again
-      const accepted = hmrAcceptCallback(pid);
+      const accepted = applyUpdate(pid);
       if (!accepted) {
         every = false;
       }
@@ -1192,108 +1296,40 @@
     return every
   };
 
-  const getDepsEntry = id => {
-    const existing = depsMap[id];
+  const getImporterEntry = id => {
+    const existing = importersMap[id];
     if (!existing) {
-      return (depsMap[id] = [])
+      return (importersMap[id] = [])
     }
     return existing
   };
 
-  {
-    const proto = System.constructor.prototype;
+  // TODO building this reverse lookup map is probably overkill
+  const setDeps = (id, deps) => {
+    depsMap[id] = deps;
+    deps.forEach(dep => {
+      const entry = getImporterEntry(dep);
+      entry.push(id);
+    });
+  };
 
-    const createContext = proto.createContext;
-    proto.createContext = function(...args) {
-      return {
-        ...createContext.apply(this, args),
-        ...systemHot,
-      }
-    };
-
-    const onload = proto.onload;
-    proto.onload = function(...args) {
-      const [err, id, deps] = args;
-      if (!err) {
-        // TODO building this reverse lookup map is probably overkill
-        deps.forEach(dep => {
-          const entry = getDepsEntry(dep);
-          entry.push(id);
-        });
-      }
-      return onload.apply(this, args)
-    };
-  }
-
-  const ws = new WebSocket(`ws://${location.hostname}:38670`);
-
-  const logPrefix = '[HMR]';
-  /* eslint-disable no-console */
-  const verboseLog = console.debug.bind(console, logPrefix);
-  const log = console.log.bind(console, logPrefix);
-  const logError = console.error.bind(console, logPrefix);
-  /* eslint-enable no-console */
-
-  ws.onmessage = function(e) {
-    const hot = JSON.parse(e.data);
-
-    if (hot.greeting) {
-      log('Enabled');
-    }
-
-    if (hot.status) {
-      switch (hot.status) {
-        case 'prepare':
-          log('Rebuilding...');
-          break
-      }
-      // setHotStatus(hot.status)
-    }
-
-    if (hot.changes) {
-      verboseLog('Apply changes...');
-
-      overlay.setCompileError(null);
-      overlay.clearErrors();
-
-      Promise.all(
-        hot.changes
-          .map(name => System.resolve(name))
-          .filter(id => System.has(id))
-          .map(async id => {
-            try {
-              // if (!change.removed) {
-              const accepted = hmrAcceptCallback(id);
-              if (accepted) {
-                await flush();
-              } else {
-                // TODO full reload
-                log(hmrFailedMessage);
-                window.location.reload();
-              }
-              // }
-            } catch (err) {
-              overlay.addError(err);
-              throw err
-            }
-          })
-      )
-        .then(() => {
-          log('Up to date');
-        })
-        .catch(err => {
-          logError((err && err.stack) || err);
-          log(hmrFailedMessage);
-        });
-    }
-
-    if (hot.errors) {
-      const { build } = hot.errors;
-      if (build) {
-        log('Build error!');
-        overlay.setCompileError(build.formatted || build);
+  const forgetDeps = id => {
+    const deps = depsMap[id];
+    if (deps) {
+      delete depsMap[id];
+      for (const dep of deps) {
+        const importerDeps = importersMap[dep];
+        if (!importerDeps) continue
+        const index = importerDeps.indexOf(id);
+        if (index < 0) continue
+        importerDeps.splice(index, 1);
       }
     }
   };
 
+  installSystemHooks({ hot, setDeps });
+
+  createWebSocketClient({ applyUpdate, flush });
+
 }());
+//# sourceMappingURL=hmr-runtime.js.map

@@ -1,11 +1,7 @@
 import 'systemjs/dist/system.js'
 
 import installSystemHooks from './system-hooks'
-import ErrorOverlay from './overlay'
-
-const hmrFailedMessage = 'Cannot apply HMR update'
-
-const overlay = ErrorOverlay()
+import createWebSocketClient from './client'
 
 const depsMap = {}
 const importersMap = {}
@@ -146,94 +142,6 @@ const forgetDeps = id => {
   }
 }
 
-const logPrefix = '[HMR]'
-/* eslint-disable no-console */
-const verboseLog = console.debug.bind(console, logPrefix)
-const log = console.log.bind(console, logPrefix)
-const logError = console.error.bind(console, logPrefix)
-const consoleClear = console.clear.bind(console)
-/* eslint-enable no-console */
-
-const noFullReload = false
-const fullReload = msg => {
-  // yes, the log message is only visible with something like preserveLog
-  const action = noFullReload ? 'full reload needed' : 'doing a full reload'
-  log(`${msg}, ${action}`)
-  window.location.reload()
-}
-
 installSystemHooks({ hot, setDeps })
 
-// TODO
-const hmrDead = false
-
-const ws = new WebSocket(`ws://${location.hostname}:38670`)
-
-let clearConsole = false
-
-ws.onmessage = function(e) {
-  const hot = JSON.parse(e.data)
-
-  if (hot.greeting) {
-    log('Enabled')
-    clearConsole = hot.greeting.clearConsole
-  }
-
-  if (hot.status) {
-    switch (hot.status) {
-      case 'prepare':
-        log('Rebuilding...')
-        break
-    }
-  }
-
-  if (hot.changes) {
-    // TODO handle removed?
-
-    if (hmrDead) {
-      fullReload('A previous update failed')
-    }
-
-    verboseLog('Apply changes...')
-
-    overlay.setCompileError(null)
-    overlay.clearErrors()
-
-    Promise.all(
-      hot.changes
-        .map(name => System.resolve(name))
-        .filter(id => System.has(id))
-        .map(async id => {
-          try {
-            return applyUpdate(id, true)
-          } catch (err) {
-            overlay.addError(err)
-            throw err
-          }
-        })
-    )
-      .then(async accepted => {
-        if (accepted) {
-          await flush()
-        } else {
-          fullReload(hmrFailedMessage)
-        }
-        if (clearConsole) {
-          consoleClear()
-        }
-        log('Up to date')
-      })
-      .catch(err => {
-        logError((err && err.stack) || err)
-        log(hmrFailedMessage)
-      })
-  }
-
-  if (hot.errors) {
-    const { build } = hot.errors
-    if (build) {
-      log('Build error!')
-      overlay.setCompileError(build.formatted || build)
-    }
-  }
-}
+createWebSocketClient({ applyUpdate, flush })
