@@ -151,6 +151,7 @@ const logPrefix = '[HMR]'
 const verboseLog = console.debug.bind(console, logPrefix)
 const log = console.log.bind(console, logPrefix)
 const logError = console.error.bind(console, logPrefix)
+const consoleClear = console.clear.bind(console)
 /* eslint-enable no-console */
 
 const noFullReload = false
@@ -168,11 +169,14 @@ const hmrDead = false
 
 const ws = new WebSocket(`ws://${location.hostname}:38670`)
 
+let clearConsole = false
+
 ws.onmessage = function(e) {
   const hot = JSON.parse(e.data)
 
   if (hot.greeting) {
     log('Enabled')
+    clearConsole = hot.greeting.clearConsole
   }
 
   if (hot.status) {
@@ -213,6 +217,9 @@ ws.onmessage = function(e) {
           await flush()
         } else {
           fullReload(hmrFailedMessage)
+        }
+        if (clearConsole) {
+          consoleClear()
         }
         log('Up to date')
       })

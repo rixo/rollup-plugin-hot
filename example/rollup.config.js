@@ -12,6 +12,7 @@ export default {
     hmr({
       hot: true,
       public: 'public',
+      clearConsole: false,
     }),
   ],
   watch: {
