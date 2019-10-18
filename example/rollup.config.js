@@ -1,5 +1,4 @@
 import hmr from 'rollup-plugin-hot'
-import * as path from 'path'
 
 export default {
   input: './src/main.js',
