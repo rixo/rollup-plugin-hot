@@ -3,7 +3,7 @@ import resolve from 'rollup-plugin-node-resolve'
 export default {
   input: './src/index.js',
   output: {
-    sourcemap: false,
+    sourcemap: true,
     format: 'iife',
     file: 'dist/hmr-client.js',
   },
