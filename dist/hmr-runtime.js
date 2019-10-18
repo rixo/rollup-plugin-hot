@@ -1191,8 +1191,49 @@
   const depsMap = {};
   const importersMap = {};
 
+  const getImporterEntry = id => {
+    const existing = importersMap[id];
+    if (!existing) {
+      return (importersMap[id] = [])
+    }
+    return existing
+  };
+
+  // TODO building this reverse lookup map is probably overkill
+  const setDeps = (id, deps) => {
+    depsMap[id] = deps;
+    deps.forEach(dep => {
+      const entry = getImporterEntry(dep);
+      entry.push(id);
+    });
+  };
+
+  const forgetDeps = id => {
+    const deps = depsMap[id];
+    if (deps) {
+      delete depsMap[id];
+      for (const dep of deps) {
+        const importerDeps = importersMap[dep];
+        if (!importerDeps) continue
+        const index = importerDeps.indexOf(id);
+        if (index < 0) continue
+        importerDeps.splice(index, 1);
+      }
+    }
+  };
+
+  const getImporters = id => importersMap[id];
+
+  const serial = handler => {
+    let promise;
+    return () => (promise = promise ? promise.then(handler) : handler())
+  };
+
   const acceptCallbacks = {};
   const disposeCallbacks = {};
+
+  let queue = [];
+  let queueMap = {};
 
   const hot = {
     accept(cb = true) {
@@ -1202,14 +1243,6 @@
       disposeCallbacks[this.id] = cb;
     },
   };
-
-  const serial = handler => {
-    let promise;
-    return () => (promise = promise ? promise.then(handler) : handler())
-  };
-
-  let queue = [];
-  let queueMap = {};
 
   const invalidate = (id, reload = false, rerun = true) => {
     const item = queueMap[id];
@@ -1265,7 +1298,7 @@
   });
 
   const applyUpdate = (id, forceReload = false) => {
-    const parentIds = importersMap[id];
+    const parentIds = getImporters(id);
 
     if (forceReload) {
       scheduleReload(id);
@@ -1294,37 +1327,6 @@
     }
 
     return every
-  };
-
-  const getImporterEntry = id => {
-    const existing = importersMap[id];
-    if (!existing) {
-      return (importersMap[id] = [])
-    }
-    return existing
-  };
-
-  // TODO building this reverse lookup map is probably overkill
-  const setDeps = (id, deps) => {
-    depsMap[id] = deps;
-    deps.forEach(dep => {
-      const entry = getImporterEntry(dep);
-      entry.push(id);
-    });
-  };
-
-  const forgetDeps = id => {
-    const deps = depsMap[id];
-    if (deps) {
-      delete depsMap[id];
-      for (const dep of deps) {
-        const importerDeps = importersMap[dep];
-        if (!importerDeps) continue
-        const index = importerDeps.indexOf(id);
-        if (index < 0) continue
-        importerDeps.splice(index, 1);
-      }
-    }
   };
 
   installSystemHooks({ hot, setDeps });
