@@ -22,12 +22,12 @@ export default {
     },
   ]),
   plugins: [
-    hmr({
-      hot: true,
-      public: 'public',
-      clearConsole: false,
-      inMemory: true,
-    }),
+    hot &&
+      hmr({
+        public: 'public',
+        clearConsole: false,
+        inMemory: true,
+      }),
   ],
   watch: {
     clearScreen: false,
