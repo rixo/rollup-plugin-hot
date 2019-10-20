@@ -113,6 +113,13 @@ cookie@0.4.0:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/cookie/-/cookie-0.4.0.tgz#beb437e7022b3b6d49019d088665303ebe9c14ba"
 
+cors@^2.8.5:
+  version "2.8.5"
+  resolved "https://registry.yarnpkg.com/cors/-/cors-2.8.5.tgz#eac11da51592dd86b9f06f6e7ac293b3df875d29"
+  dependencies:
+    object-assign "^4"
+    vary "^1"
+
 cross-spawn@^6.0.5:
   version "6.0.5"
   resolved "https://registry.yarnpkg.com/cross-spawn/-/cross-spawn-6.0.5.tgz#4a5ec7c64dfae22c3a14124dbacdee846d80cbc4"
@@ -447,6 +454,10 @@ npm-run-all@^4.1.5:
     shell-quote "^1.6.1"
     string.prototype.padend "^3.0.0"
 
+object-assign@^4:
+  version "4.1.1"
+  resolved "https://registry.yarnpkg.com/object-assign/-/object-assign-4.1.1.tgz#2109adc7965887cfc05cbbd442cac8bfbb360863"
+
 object-inspect@^1.6.0:
   version "1.6.0"
   resolved "https://registry.yarnpkg.com/object-inspect/-/object-inspect-1.6.0.tgz#c70b6cbf72f274aab4c34c0c82f5167bf82cf15b"
@@ -539,13 +550,14 @@ resolve@^1.10.0:
 "rollup-plugin-hot@file:..":
   version "0.0.0"
   dependencies:
+    cors "^2.8.5"
     express "^4.17.1"
     sirv-cli "^0.4.4"
     ws "^7.1.2"
 
-rollup@^1.24.0:
-  version "1.24.0"
-  resolved "https://registry.yarnpkg.com/rollup/-/rollup-1.24.0.tgz#0ace969508babb7a5fcb228e831e9c9a2873c2b0"
+rollup@^1.25.1:
+  version "1.25.1"
+  resolved "https://registry.yarnpkg.com/rollup/-/rollup-1.25.1.tgz#905707d686dc8d7218af63dcfb9e37d1f3dc3c34"
   dependencies:
     "@types/estree" "*"
     "@types/node" "*"
@@ -721,7 +733,7 @@ validate-npm-package-license@^3.0.1:
     spdx-correct "^3.0.0"
     spdx-expression-parse "^3.0.0"
 
-vary@~1.1.2:
+vary@^1, vary@~1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/vary/-/vary-1.1.2.tgz#2299f02c6ded30d4a5961b0b9f74524a18f634fc"
 
