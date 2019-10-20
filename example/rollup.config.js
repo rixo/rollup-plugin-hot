@@ -11,7 +11,7 @@ export default {
   // slows things down & make HMR harder, so this is not supported
   output: firstIf(hot, [
     {
-      sourcemap: 'inline',
+      sourcemap: true,
       format: 'iife',
       file: 'public/bundle.js',
     },
