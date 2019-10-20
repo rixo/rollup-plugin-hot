@@ -20,3 +20,34 @@ yarn dev
 Load http://localhost:5000 in your browser.
 
 Edit files in `example/src`.
+
+## Config
+
+~~~js
+export default {
+  input: '',
+  output: {
+    file: 'public/bundle.js',
+    sourcemap: 'inline',
+  },
+  plugins: [
+    ...
+    hmr({
+      // Enable / disable
+      hot: true,
+      // Absolute path (or relative to cwd) of public directory. Used to map
+      // output filenames to URL.
+      public: 'public',
+      // Base URL
+      baseUrl: '/',
+      // Clear console after successful HMR updates
+      clearConsole: false,
+
+      // --- Advanced ---
+
+      // Defaults to output.file. Must be under public dir.
+      loaderFile: 'public/bundle.js',
+    })
+  ]
+}
+~~~

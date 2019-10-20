@@ -3,7 +3,10 @@ import B from './b'
 
 const el = document.createElement('pre')
 
-el.innerHTML = `Hello ${B(a)}`
+// el.innerHTML = `Hello ${B(a)}`
+B(a).then(x => {
+  el.innerHTML = `Hello ${x}`
+})
 
 document.body.append(el)
 
@@ -12,12 +15,17 @@ document.body.append(el)
 // Funnily, this works:
 //
 // import('./a')
-// module.meta.accept()
-// module.meta.dispose(() => {
+// module.meta.hot.accept()
+// module.meta.hot.dispose(() => {
 //   el.remove()
 // })
 
-import.meta.accept()
-import.meta.dispose(() => {
+// import.meta.hot.catch(err => {
+//   throw err
+// })
+
+import.meta.hot.accept()
+
+import.meta.hot.dispose(() => {
   el.remove()
 })

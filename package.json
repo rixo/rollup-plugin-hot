@@ -12,6 +12,7 @@
     "systemjs": "rixo/systemjs#reload"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.17.1",
     "sirv-cli": "^0.4.4",
     "ws": "^7.1.2"

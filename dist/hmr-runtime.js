@@ -1101,9 +1101,11 @@
   /* eslint-disable no-console */
   const logPrefix = '[HMR]';
 
-  const info = console.info.bind(console, logPrefix);
+  const verbose = console.debug.bind(console, logPrefix);
 
   const log = console.log.bind(console, logPrefix);
+
+  const warn = console.warn.bind(console, logPrefix);
 
   const error = console.error.bind(console, logPrefix);
 
@@ -1114,7 +1116,11 @@
   var createWebSocketClient = ({ applyUpdate, flush, noFullReload = false, port = 38670 }) => {
     const overlay = ErrorOverlay();
 
+    const wsUrl = `${location.hostname}:${port}`;
+    const ws = new WebSocket(`ws://${wsUrl}`);
+
     let clearConsole = false;
+    let rootUrl;
 
     const doFullReload = msg => {
       // yes, the log message is only visible with something like preserveLog
@@ -1123,14 +1129,15 @@
       window.location.reload();
     };
 
-    const ws = new WebSocket(`ws://${location.hostname}:${port}`);
-
     ws.onmessage = function(e) {
       const hot = JSON.parse(e.data);
 
       if (hot.greeting) {
         log('Enabled');
         clearConsole = hot.greeting.clearConsole;
+        if (hot.greeting.inMemory) {
+          rootUrl = `${location.protocol}//${wsUrl}/`;
+        }
       }
 
       if (hot.status) {
@@ -1142,40 +1149,49 @@
       }
 
       if (hot.changes) {
+        // TODO handle removed?
 
-        info('Apply changes...');
+        {
+          verbose('Apply changes...');
 
-        overlay.setCompileError(null);
-        overlay.clearErrors();
+          overlay.setCompileError(null);
+          overlay.clearErrors();
 
-        Promise.all(
-          hot.changes
-            .map(name => System.resolve(name))
-            .filter(id => System.has(id))
-            .map(async id => {
-              try {
-                return applyUpdate(id, true)
-              } catch (err) {
-                overlay.addError(err);
-                throw err
+          Promise.all(
+            hot.changes
+              .map(name => System.resolve(name, rootUrl))
+              .filter(id => {
+                if (!System.has(id)) {
+                  warn(`Detected change to unknown module: ${id}`);
+                  return false
+                }
+                return System.has(id)
+              })
+              .map(async id => {
+                try {
+                  return applyUpdate(id, true)
+                } catch (err) {
+                  overlay.addError(err);
+                  throw err
+                }
+              })
+          )
+            .then(async accepted => {
+              if (accepted) {
+                await flush();
+              } else {
+                doFullReload(hmrFailedMessage);
               }
+              if (clearConsole) {
+                clear();
+              }
+              log('Up to date');
             })
-        )
-          .then(async accepted => {
-            if (accepted) {
-              await flush();
-            } else {
-              doFullReload(hmrFailedMessage);
-            }
-            if (clearConsole) {
-              clear();
-            }
-            log('Up to date');
-          })
-          .catch(err => {
-            error((err && err.stack) || err);
-            log(hmrFailedMessage);
-          });
+            .catch(err => {
+              error((err && err.stack) || err);
+              log(hmrFailedMessage);
+            });
+        }
       }
 
       if (hot.errors) {
