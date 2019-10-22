@@ -27,7 +27,6 @@ export default {
         public: 'public',
         clearConsole: false,
         inMemory: true,
-        inMemory: false,
       }),
   ],
   watch: {
