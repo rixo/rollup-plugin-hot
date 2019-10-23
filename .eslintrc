@@ -5,10 +5,15 @@ overrides:
   - files: ["lib/**/*"]
     env:
       node: true
-  - files: ["src/**/*", "example/src/**/*"]
+  - files: ["**/*/rollup.*.js"]
+    env:
+      node: true
+  - files: ["src/**/*", "test/**/src/**/*"]
     env:
       browser: true
     globals:
       System: readonly
-    rules:
-      import/no-unresolved: [error, { ignore: ['^@hot$']}]
+
+rules:
+  # buggy rule... TODO should be disabled in @rixo/eslint-config
+  require-atomic-updates: off

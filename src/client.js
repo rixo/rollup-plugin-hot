@@ -48,9 +48,6 @@ export default ({ applyUpdate, flush, noFullReload = false, port = 38670 }) => {
       } else {
         log.verbose('Apply changes...')
 
-        overlay.setCompileError(null)
-        overlay.clearErrors()
-
         Promise.all(
           hot.changes
             .map(name => System.resolve(name, rootUrl))
@@ -71,11 +68,16 @@ export default ({ applyUpdate, flush, noFullReload = false, port = 38670 }) => {
             })
         )
           .then(async accepted => {
-            if (accepted) {
-              await flush()
-            } else {
+            if (!accepted) {
               doFullReload(hmrFailedMessage)
+              return
             }
+
+            await flush()
+
+            overlay.setCompileError(null)
+            overlay.clearErrors()
+
             if (clearConsole) {
               log.clear()
             }

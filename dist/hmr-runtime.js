@@ -1154,9 +1154,6 @@
         {
           verbose('Apply changes...');
 
-          overlay.setCompileError(null);
-          overlay.clearErrors();
-
           Promise.all(
             hot.changes
               .map(name => System.resolve(name, rootUrl))
@@ -1177,11 +1174,16 @@
               })
           )
             .then(async accepted => {
-              if (accepted) {
-                await flush();
-              } else {
+              if (!accepted) {
                 doFullReload(hmrFailedMessage);
+                return
               }
+
+              await flush();
+
+              overlay.setCompileError(null);
+              overlay.clearErrors();
+
               if (clearConsole) {
                 clear();
               }
