@@ -40,6 +40,7 @@
   "scripts": {
     "build": "rollup -c",
     "autobuild": "rollup -c -w",
-    "dev": "npm run autobuild"
+    "dev": "npm run autobuild",
+    "test": "echo TODO"
   }
 }
