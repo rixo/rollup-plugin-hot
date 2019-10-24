@@ -45,7 +45,7 @@ yarn add --dev rollup-plugin-hot
 ~~~js
 export default {
   output: {
-    // supports both dir and file
+    // supports either dir or file
     dir: 'public', // writes individual modules to public/@hot/
     file: 'public/bundle.js', // ... to public/bundle.js@hot/
 
