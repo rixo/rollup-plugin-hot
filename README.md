@@ -62,19 +62,43 @@ export default {
       // knows about filenames but SystemJS knows about URLs.
       //
       // FS path to public directory
-      public: 'public',
+      public: 'public', // Default: ''
       // Base URL
-      baseUrl: '/',
+      baseUrl: '/', // Default: '/'
+
+      // Change the port of the dev server
+      port: 12345, // Default: 38670
 
       // Write bundle files in RAM instead of FS and serve them through the dev
       // server. This is obviously more performant but there may be cross domain
       // issues. Also, for very big apps, this might consume too much memory.
-      inMemory: true,
+      inMemory: true, // Default: false
       // If you sill want to write do disk when using inMemory.
-      write: true,
+      write: true, // Default: !inMemory
+
+      // Prevent full reload on HMR errors. HMR updates will keep being applied
+      // and, most probably, crash more & more. By changing this, you expose
+      // yourself to a very broken HMR experience...
+      reload: false,
+      // Or fine grained (will be deep merged in the bellow defaults)
+      reload: {
+        moduleError: 'defer',
+        acceptError: true,
+        error: true,
+      }
+
+      // By default, when an update is not accepted the root modules (i.e. those
+      // that have no import parents) are automatically accepted. This means
+      // that every module will be hot reloaded. You can turn this off to do
+      // a full reload instead.
+      //
+      // Note: an update is "not accepted" when the whole module tree has been
+      // traversed, starting from the changed module, up to the root module(s),
+      // and no accept handlers have been registered.
+      autoAccept: false, // Default: true
 
       // Clear console after successful HMR updates (Parcel style)
-      clearConsole: false,
+      clearConsole: true, // Default: false
 
       // --- Advanced ---
 
@@ -135,8 +159,9 @@ One of the very open question of this implementation is what should the "hot API
 In Webpack, it looks like this:
 
 ~~~js
-module.hot.dispose(() => { ... }) // run a handler on dispose
-module.hot.accept() // self-accept HMR updates for this module
+const previousDisposeData = module.hot.data
+module.hot.dispose(data => { ... }) // run a handler on dispose
+module.hot.accept(errorHandler) // self-accept HMR updates for this module
 module.hot.decline() // reject any update that touches this module
 // plus a whole lot more of other things
 ~~~
@@ -144,8 +169,9 @@ module.hot.decline() // reject any update that touches this module
 What this plugin currently implements is this:
 
 ~~~js
-import.meta.hot.dispose(...)
-import.meta.hot.accept()
+const previousDisposeData = import.meta.hot.data
+import.meta.hot.dispose(async data => { ... })
+import.meta.hot.accept(async acceptHandler)
 import.meta.hot.decline() // TODO
 // and that's all
 ~~~

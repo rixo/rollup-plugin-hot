@@ -1,4 +1,5 @@
 import resolve from 'rollup-plugin-node-resolve'
+import commonjs from 'rollup-plugin-commonjs'
 
 export default {
   input: './src/main.js',
@@ -10,8 +11,9 @@ export default {
   plugins: [
     resolve({
       browser: true,
-      // dedupe: importee =>
-      //   importee === 'svelte' || importee.startsWith('svelte/'),
+    }),
+    commonjs({
+      include: 'lib/constants.js',
     }),
   ],
 }

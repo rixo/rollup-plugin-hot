@@ -951,7 +951,216 @@
 
   }());
 
-  var installSystemHooks = ({ hot, setDeps }) => {
+  const gid = '__ROLLUP_PLUGIN_HOT_RUNTIME';
+
+  var constants = { gid };
+  var constants_1 = constants.gid;
+
+  const depsMap = {};
+  const importersMap = {};
+  const errors = {};
+
+  const getImporterEntry = id => {
+    const existing = importersMap[id];
+    if (!existing) {
+      return (importersMap[id] = [])
+    }
+    return existing
+  };
+
+  // TODO building this reverse lookup map is probably overkill
+  const setDeps = (err, id, deps) => {
+    if (err) {
+      errors[id] = err;
+    } else {
+      delete errors[id];
+    }
+    if (deps) {
+      depsMap[id] = deps;
+      deps.forEach(dep => {
+        const entry = getImporterEntry(dep);
+        entry.push(id);
+      });
+    }
+  };
+
+  const forgetDeps = id => {
+    const deps = depsMap[id];
+    if (deps) {
+      delete depsMap[id];
+      for (const dep of deps) {
+        const importerDeps = importersMap[dep];
+        if (!importerDeps) continue
+        const index = importerDeps.indexOf(id);
+        if (index < 0) continue
+        importerDeps.splice(index, 1);
+      }
+    }
+  };
+
+  const getImporters = id => importersMap[id];
+
+  const getError = id => errors[id];
+
+  const serial = handler => {
+    let promise;
+    return () => (promise = promise ? promise.then(handler) : handler())
+  };
+
+  let queue = [];
+  let queueMap = {};
+
+  const hotStates = {};
+
+  class HotState {
+    // data: undefined
+    // acceptCallback: null
+    // disposeCallback: null
+
+    constructor(id) {
+      this.id = id;
+    }
+
+    accept(cb = true) {
+      this.acceptCallback = cb;
+    }
+
+    dispose(cb) {
+      this.disposeCallback = cb;
+    }
+  }
+
+  const getHotState = id => {
+    const existing = hotStates[id];
+    if (existing) {
+      return existing
+    }
+    const state = new HotState(id);
+    hotStates[id] = state;
+    return state
+  };
+
+  const createHotContext = id => getHotState(id);
+
+  const invalidate = (id, reload = false, rerun = true) => {
+    const item = queueMap[id];
+    if (item) {
+      queue.splice(item.index, 1);
+      item.index = queue.length;
+      if (reload) {
+        item.reload = true;
+      } else if (rerun) {
+        item.rerun = true;
+      }
+      queue.push(item);
+    } else {
+      const item = { index: queue.length, id, reload, rerun };
+      queueMap[id] = item;
+      queue.push(item);
+    }
+  };
+
+  const scheduleRerun = id => invalidate(id, false, true);
+
+  const scheduleReload = id => invalidate(id, true);
+
+  const flush = serial(async function doFlush() {
+    const currentQueue = queue;
+
+    queue = [];
+    queueMap = {};
+
+    const moduleErrors = [];
+    const acceptErrors = [];
+
+    // for (const { id, reload, rerun } of currentQueue) {
+    for (const { id, reload: realReload, rerun } of currentQueue) {
+      // TODO rerun is implemented as reload for now, short of a better solution
+      const reload = realReload || rerun;
+      const state = getHotState(id);
+      const acceptCb = state.acceptCallback;
+      const disposeCb = state.disposeCallback;
+      if (reload || rerun) {
+        delete state.acceptCallback;
+        delete state.disposeCallback;
+        if (reload) {
+          forgetDeps(id);
+        }
+      }
+      if (typeof disposeCb === 'function') {
+        state.data = {};
+        await disposeCb(state.data);
+      }
+      if (reload) {
+        try {
+          await System.reload(id);
+          const error = getError(id);
+          if (error) {
+            moduleErrors.push({ id, error });
+          } else {
+            if (typeof acceptCb === 'function') {
+              try {
+                await acceptCb();
+              } catch (error) {
+                acceptErrors.push({ id, error });
+              }
+            }
+          }
+        } catch (error) {
+          moduleErrors.push({ id, error });
+        }
+      } else if (rerun) {
+        throw new Error('TODO')
+      } else {
+        System.delete(id);
+      }
+    }
+
+    const total = moduleErrors.length + acceptErrors.length;
+    const errors =
+      total === 0
+        ? null
+        : {
+            module: moduleErrors.length > 0 ? moduleErrors : null,
+            accept: acceptErrors.length > 0 ? acceptErrors : null,
+          };
+
+    return { errors }
+  });
+
+  const applyUpdate = (id, forceReload = false) => {
+    const parentIds = getImporters(id);
+
+    if (forceReload) {
+      scheduleReload(id);
+    } else {
+      invalidate(id);
+    }
+
+    const accepted = getHotState(id).acceptCallback;
+    if (accepted) {
+      scheduleRerun(id);
+      return true
+    }
+
+    if (!parentIds) {
+      return false
+    }
+
+    let every = true;
+    for (const pid of parentIds) {
+      // TODO these modules don't need a reload, just refreshing their
+      //      bindings + execute again
+      const accepted = applyUpdate(pid);
+      if (!accepted) {
+        every = false;
+      }
+    }
+
+    return every
+  };
+
+  var installSystemHooks = () => {
     const proto = System.constructor.prototype;
 
     const createContext = proto.createContext;
@@ -959,16 +1168,14 @@
       const [url] = args;
       return {
         ...createContext.apply(this, args),
-        hot: { id: url, ...hot },
+        hot: createHotContext(url),
       }
     };
 
     const onload = proto.onload;
     proto.onload = function(...args) {
       const [err, id, deps] = args;
-      if (!err) {
-        setDeps(id, deps);
-      }
+      setDeps(err, id, deps);
       return onload.apply(this, args)
     };
   };
@@ -1111,10 +1318,18 @@
 
   const clear = console.clear.bind(console);
 
-  const hmrFailedMessage = 'Cannot apply HMR update';
+  var createWebSocketClient = ({ port = 38670, reload: reloadOption = true }) => {
 
-  var createWebSocketClient = ({ applyUpdate, flush, noFullReload = false, port = 38670 }) => {
-    const overlay = ErrorOverlay();
+    const reloadOn = reloadOption
+      ? {
+          acceptError: true,
+          moduleError: 'defer',
+          error: true,
+          ...reloadOption,
+        }
+      : false;
+
+    let deferredFullReload = false;
 
     const wsUrl = `${location.hostname}:${port}`;
     const ws = new WebSocket(`ws://${wsUrl}`);
@@ -1122,22 +1337,181 @@
     let clearConsole = false;
     let rootUrl;
 
-    const doFullReload = msg => {
-      // yes, the log message is only visible with something like preserveLog
-      const action = noFullReload ? 'full reload needed' : 'doing a full reload';
-      log(`${msg}, ${action}`);
-      window.location.reload();
+    const overlay = ErrorOverlay();
+
+    const unresolve = id => {
+      const baseUrl = rootUrl || location.origin + '/';
+      const pre = String(id).slice(0, baseUrl.length);
+      if (pre === baseUrl) {
+        return String(id).slice(baseUrl.length)
+      } else {
+        return id
+      }
+    };
+
+    const doReload = () => window.location.reload();
+
+    const doFullReload = (flag, msg) => {
+      if (flag === 'defer') {
+        deferredFullReload = true;
+        const action = 'full reload on next update';
+        log(`${msg}: ${action}`);
+        return false
+      } else if (flag) {
+        if (deferredFullReload) {
+          // deferred reload takes precedence because the rationale is that there
+          // is still something broken in user's code and reloading now would just
+          // throw the same error again (nominal case of deferred reload is when
+          // a module body cannot be executed)
+          const action = 'full reload already scheduled on next update';
+          log(`${msg}: ${action}`);
+          return false
+        } else {
+          const action = 'full reload';
+          // yes, the log message is only visible with something like "preserve log"
+          log(`${msg}: ${action}`);
+          doReload();
+          return true
+        }
+      } else {
+        const action = 'full reload required';
+        log(`${msg}: ${action}`);
+        return false
+      }
+    };
+    const reloadModule = msg => doFullReload(reloadOn.moduleError, msg);
+    const reloadAccept = msg => doFullReload(reloadOn.acceptError, msg);
+    const reloadError = msg => doFullReload(reloadOn.error, msg);
+
+    const applyOptions = opts => {
+      clearConsole = opts.clearConsole;
+
+      if (opts.inMemory) {
+        rootUrl = `${location.protocol}//${wsUrl}/`;
+      }
+
+      if (opts.reload === false) {
+        Object.keys(reloadOn).forEach(key => {
+          reloadOn[key] = false;
+        });
+      } else {
+        Object.assign(reloadOn, opts.reload);
+      }
+    };
+
+    const applyAccepted = async accepted => {
+      if (!accepted) {
+        {
+          verbose(
+            'Update has not been accepted: hot reloading all the things'
+          );
+        }
+      }
+
+      const { errors } = await flush();
+
+      overlay.setCompileError(null);
+      overlay.clearErrors();
+
+      if (clearConsole) {
+        clear();
+      }
+
+      if (errors) {
+        // error(s) on sync run of module body
+        if (errors.module) {
+          for (const { id, error: error$1 } of errors.module) {
+            error(`Error during reloaded module init: ${id}\n`, error$1);
+          }
+          const reload = reloadModule('Error during reloaded module init');
+          // !reload: no overlay if reload has been triggered
+          // deferredFullReload: overlay would be tro disruptive if reload=false
+          if (!reload && deferredFullReload) {
+            for (const { id, error } of errors.module) {
+              overlay.addError(error, unresolve(id));
+            }
+          }
+        }
+        // error(s) in accept callbacks
+        if (errors.accept) {
+          for (const { id, error: error$1 } of errors.accept) {
+            error(`Failed to accept update to module ${id}\n`, error$1);
+          }
+          const reload = reloadAccept('Failed to accept update');
+          // !error.module: don't mix with module errors; module errors are
+          // displayed first because the accept error is probably a consequence
+          // of the module error
+          if (!reload && deferredFullReload && !errors.module) {
+            for (const { id, error } of errors.accept) {
+              overlay.addError(error, unresolve(id));
+            }
+          }
+        }
+      }
+
+      if (!errors) {
+        log('Up to date');
+      }
+    };
+
+    const acceptChanges = changes => {
+      const allAccepted = changes
+        .map(name => System.resolve(name, rootUrl))
+        .filter(id => {
+          if (!System.has(id)) {
+            warn(`Detected change to unknown module: ${id}`);
+            return false
+          }
+          return System.has(id)
+        })
+        .map(id => {
+          try {
+            return applyUpdate(id, true)
+          } catch (err) {
+            overlay.addError(err);
+            throw err
+          }
+        });
+
+      return allAccepted.length > 0 && allAccepted.every(Boolean)
+    };
+
+    const handleApplyAcceptError = err => {
+      error((err && err.stack) || err);
+      const reload = reloadError('Failed to apply update');
+      if (!reload) {
+        overlay.addError(err);
+      }
+    };
+
+    const processChanges = changes => {
+      // TODO handle removed?
+
+      if (deferredFullReload) {
+        log('Reloading...');
+        doReload();
+        return
+      }
+
+      if (changes.length === 0) {
+        log('Nothing changed');
+        return
+      }
+
+      verbose('Apply changes...');
+
+      const accepted = acceptChanges(changes);
+
+      return applyAccepted(accepted).catch(handleApplyAcceptError)
     };
 
     ws.onmessage = function(e) {
       const hot = JSON.parse(e.data);
 
       if (hot.greeting) {
+        applyOptions(hot.greeting);
+        // log last: "Enabled" means we're up and running
         log('Enabled');
-        clearConsole = hot.greeting.clearConsole;
-        if (hot.greeting.inMemory) {
-          rootUrl = `${location.protocol}//${wsUrl}/`;
-        }
       }
 
       if (hot.status) {
@@ -1149,51 +1523,7 @@
       }
 
       if (hot.changes) {
-        // TODO handle removed?
-
-        {
-          verbose('Apply changes...');
-
-          Promise.all(
-            hot.changes
-              .map(name => System.resolve(name, rootUrl))
-              .filter(id => {
-                if (!System.has(id)) {
-                  warn(`Detected change to unknown module: ${id}`);
-                  return false
-                }
-                return System.has(id)
-              })
-              .map(async id => {
-                try {
-                  return applyUpdate(id, true)
-                } catch (err) {
-                  overlay.addError(err);
-                  throw err
-                }
-              })
-          )
-            .then(async accepted => {
-              if (!accepted) {
-                doFullReload(hmrFailedMessage);
-                return
-              }
-
-              await flush();
-
-              overlay.setCompileError(null);
-              overlay.clearErrors();
-
-              if (clearConsole) {
-                clear();
-              }
-              log('Up to date');
-            })
-            .catch(err => {
-              error((err && err.stack) || err);
-              log(hmrFailedMessage);
-            });
-        }
+        processChanges(hot.changes);
       }
 
       if (hot.errors) {
@@ -1206,150 +1536,20 @@
     };
   };
 
-  const depsMap = {};
-  const importersMap = {};
-
-  const getImporterEntry = id => {
-    const existing = importersMap[id];
-    if (!existing) {
-      return (importersMap[id] = [])
-    }
-    return existing
+  const resolvePort = () => {
+    const g =
+      (typeof window !== 'undefined' && window) ||
+      // eslint-disable-next-line no-undef
+      (typeof global !== 'undefined' && global);
+    const { port } = g[constants_1];
+    return port
   };
 
-  // TODO building this reverse lookup map is probably overkill
-  const setDeps = (id, deps) => {
-    depsMap[id] = deps;
-    deps.forEach(dep => {
-      const entry = getImporterEntry(dep);
-      entry.push(id);
-    });
-  };
+  const port = resolvePort();
 
-  const forgetDeps = id => {
-    const deps = depsMap[id];
-    if (deps) {
-      delete depsMap[id];
-      for (const dep of deps) {
-        const importerDeps = importersMap[dep];
-        if (!importerDeps) continue
-        const index = importerDeps.indexOf(id);
-        if (index < 0) continue
-        importerDeps.splice(index, 1);
-      }
-    }
-  };
+  installSystemHooks();
 
-  const getImporters = id => importersMap[id];
-
-  const serial = handler => {
-    let promise;
-    return () => (promise = promise ? promise.then(handler) : handler())
-  };
-
-  const acceptCallbacks = {};
-  const disposeCallbacks = {};
-
-  let queue = [];
-  let queueMap = {};
-
-  const hot = {
-    accept(cb = true) {
-      acceptCallbacks[this.id] = cb;
-    },
-    dispose(cb = true) {
-      disposeCallbacks[this.id] = cb;
-    },
-  };
-
-  const invalidate = (id, reload = false, rerun = true) => {
-    const item = queueMap[id];
-    if (item) {
-      queue.splice(item.index, 1);
-      item.index = queue.length;
-      if (reload) {
-        item.reload = true;
-      } else if (rerun) {
-        item.rerun = true;
-      }
-      queue.push(item);
-    } else {
-      const item = { index: queue.length, id, reload, rerun };
-      queueMap[id] = item;
-      queue.push(item);
-    }
-  };
-
-  const scheduleRerun = id => invalidate(id, false, true);
-
-  const scheduleReload = id => invalidate(id, true);
-
-  const flush = serial(async function doFlush() {
-    const currentQueue = queue;
-
-    queue = [];
-    queueMap = {};
-
-    // for (const { id, reload, rerun } of currentQueue) {
-    for (const { id, reload: realReload, rerun } of currentQueue) {
-      // TODO rerun is implemented as reload for now, short of a better solution
-      const reload = realReload || rerun;
-      const disposeCb = disposeCallbacks[id];
-      if (reload || rerun) {
-        delete acceptCallbacks[id];
-        delete disposeCallbacks[id];
-        if (reload) {
-          forgetDeps(id);
-        }
-      }
-      if (typeof disposeCb === 'function') {
-        await disposeCb();
-      }
-      if (reload) {
-        await System.reload(id);
-      } else if (rerun) {
-        throw new Error('TODO')
-      } else {
-        System.delete(id);
-      }
-    }
-  });
-
-  const applyUpdate = (id, forceReload = false) => {
-    const parentIds = getImporters(id);
-
-    if (forceReload) {
-      scheduleReload(id);
-    } else {
-      invalidate(id);
-    }
-
-    const accepted = acceptCallbacks[id];
-    if (accepted) {
-      scheduleRerun(id);
-      return true
-    }
-
-    if (!parentIds) {
-      return false
-    }
-
-    let every = true;
-    for (const pid of parentIds) {
-      // TODO these modules don't need a reload, just refreshing their
-      //      bindings + execute again
-      const accepted = applyUpdate(pid);
-      if (!accepted) {
-        every = false;
-      }
-    }
-
-    return every
-  };
-
-  installSystemHooks({ hot, setDeps });
-
-  createWebSocketClient({ applyUpdate, flush });
+  createWebSocketClient({ port });
 
 }());
 //# sourceMappingURL=hmr-runtime.js.map

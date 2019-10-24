@@ -1,20 +1,40 @@
-import { forgetDeps, getImporters } from './deps-map'
+import { forgetDeps, getImporters, getError } from './deps-map'
 import { serial } from './utils'
-
-const acceptCallbacks = {}
-const disposeCallbacks = {}
 
 let queue = []
 let queueMap = {}
 
-export const hot = {
+const hotStates = {}
+
+class HotState {
+  // data: undefined
+  // acceptCallback: null
+  // disposeCallback: null
+
+  constructor(id) {
+    this.id = id
+  }
+
   accept(cb = true) {
-    acceptCallbacks[this.id] = cb
-  },
-  dispose(cb = true) {
-    disposeCallbacks[this.id] = cb
-  },
+    this.acceptCallback = cb
+  }
+
+  dispose(cb) {
+    this.disposeCallback = cb
+  }
 }
+
+const getHotState = id => {
+  const existing = hotStates[id]
+  if (existing) {
+    return existing
+  }
+  const state = new HotState(id)
+  hotStates[id] = state
+  return state
+}
+
+export const createHotContext = id => getHotState(id)
 
 const invalidate = (id, reload = false, rerun = true) => {
   const item = queueMap[id]
@@ -44,29 +64,62 @@ export const flush = serial(async function doFlush() {
   queue = []
   queueMap = {}
 
+  const moduleErrors = []
+  const acceptErrors = []
+
   // for (const { id, reload, rerun } of currentQueue) {
   for (const { id, reload: realReload, rerun } of currentQueue) {
     // TODO rerun is implemented as reload for now, short of a better solution
     const reload = realReload || rerun
-    const disposeCb = disposeCallbacks[id]
+    const state = getHotState(id)
+    const acceptCb = state.acceptCallback
+    const disposeCb = state.disposeCallback
     if (reload || rerun) {
-      delete acceptCallbacks[id]
-      delete disposeCallbacks[id]
+      delete state.acceptCallback
+      delete state.disposeCallback
       if (reload) {
         forgetDeps(id)
       }
     }
     if (typeof disposeCb === 'function') {
-      await disposeCb()
+      state.data = {}
+      await disposeCb(state.data)
     }
     if (reload) {
-      await System.reload(id)
+      try {
+        await System.reload(id)
+        const error = getError(id)
+        if (error) {
+          moduleErrors.push({ id, error })
+        } else {
+          if (typeof acceptCb === 'function') {
+            try {
+              await acceptCb()
+            } catch (error) {
+              acceptErrors.push({ id, error })
+            }
+          }
+        }
+      } catch (error) {
+        moduleErrors.push({ id, error })
+      }
     } else if (rerun) {
       throw new Error('TODO')
     } else {
       System.delete(id)
     }
   }
+
+  const total = moduleErrors.length + acceptErrors.length
+  const errors =
+    total === 0
+      ? null
+      : {
+          module: moduleErrors.length > 0 ? moduleErrors : null,
+          accept: acceptErrors.length > 0 ? acceptErrors : null,
+        }
+
+  return { errors }
 })
 
 export const applyUpdate = (id, forceReload = false) => {
@@ -78,7 +131,7 @@ export const applyUpdate = (id, forceReload = false) => {
     invalidate(id)
   }
 
-  const accepted = acceptCallbacks[id]
+  const accepted = getHotState(id).acceptCallback
   if (accepted) {
     scheduleRerun(id)
     return true

@@ -1,10 +1,21 @@
 import 'systemjs/dist/system.js'
 
+import { gid } from '../lib/constants'
+
 import installSystemHooks from './system-hooks'
 import createWebSocketClient from './client'
-import { setDeps } from './deps-map'
-import { hot, applyUpdate, flush } from './hot'
 
-installSystemHooks({ hot, setDeps })
+const resolvePort = () => {
+  const g =
+    (typeof window !== 'undefined' && window) ||
+    // eslint-disable-next-line no-undef
+    (typeof global !== 'undefined' && global)
+  const { port } = g[gid]
+  return port
+}
 
-createWebSocketClient({ applyUpdate, flush })
+const port = resolvePort()
+
+installSystemHooks()
+
+createWebSocketClient({ port })
