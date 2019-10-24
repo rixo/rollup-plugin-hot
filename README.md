@@ -2,7 +2,7 @@
 
 > HMR plugin for Rollup, leveraging SystemJS
 
-**This is just a proof of concept right now. Not ready for production by any measures.**
+**This is just a proof of concept right now. Not ready for production by any measure.**
 
 It's using a [WIP branch](https://github.com/LarsDenBakker/systemjs/tree/reload) of SystemJS (thanks dudes!).
 
@@ -110,11 +110,11 @@ The plugin will write only HMR machinery in `public/bundle.js` and add a single 
 System.import('/bundle.js@hot/main.js')
 ~~~
 
-The precise location of the @hot directory changes depending on whether you're using `output.file` (`outputFile.js@hot/`) or `output.dir` (`outputDir/@hot`), and the value of `preserveModules` (`outputDir/entry@hot.js`) in your Rollup config.
+The precise location of the @hot directory changes depending on whether you're using `output.file` (`outputFile.js@hot/`) or `output.dir` (`outputDir/@hot`), and the value of `preserveModules` (entry point renamed to `outputDir/entry@hot.js`) in your Rollup config.
 
 But the main idea is to have a 1:1 mapping between the layout of your source directory and the @hot directory, so that relative import just keep working normally. Also, since the plugin never injects anything in modules containing your own code, Rollup's source maps are also completely unaffected.
 
-There's also a `inMemory` option that stores Rollup's output files to RAM instead of writing them to disk, and serves them through the dev server. It is better for perf and for your HDD, but it can be subject to cross-domain serving issues.
+There's also a `inMemory` option that stores Rollup's output files to RAM instead of writing them to disk, and serves them through the dev server. It is better for perf and for your HDD, but it can be more subject to cross-origin issues. To be frank, the WebSocket probably already suffers from such issues...
 
 ### The "hot API"
 
