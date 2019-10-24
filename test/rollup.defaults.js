@@ -4,7 +4,7 @@ export const production = !process.env.ROLLUP_WATCH
 export const hot = !production
 
 export default {
-  input: ['../src/main.js'],
+  input: '../src/main.js',
   output: {
     sourcemap: true,
     format: 'es',
