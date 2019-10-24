@@ -28,6 +28,18 @@ Load http://localhost:5000 in your browser.
 
 Edit files in `example/src`.
 
+## Install
+
+~~~bash
+npm install --dev rollup-plugin-hot
+~~~
+
+Or:
+
+~~~bash
+yarn add --dev rollup-plugin-hot
+~~~
+
 ## Config
 
 ~~~js
