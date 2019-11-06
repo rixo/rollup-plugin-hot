@@ -1191,7 +1191,6 @@
 
     const style = {
       section: `
-      display: none;
       position: fixed;
       top: 0;
       bottom: 0;
@@ -1226,8 +1225,6 @@
       section.style = style.section;
       const body = document.createElement('div');
       section.appendChild(body);
-      const target = document.body;
-      target.appendChild(section);
       return { h1, el: section, body }
     };
 
@@ -1236,11 +1233,18 @@
     };
 
     const show = () => {
-      overlay.el.style.display = 'block';
+      const { el } = overlay;
+      if (!el.parentNode) {
+        const target = document.body;
+        target.appendChild(overlay.el);
+      }
     };
 
     const hide = () => {
-      overlay.el.style.display = 'none';
+      const { el } = overlay;
+      if (el.parentNode) {
+        overlay.el.remove();
+      }
     };
 
     const update = () => {
