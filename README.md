@@ -173,7 +173,14 @@ const previousDisposeData = import.meta.hot.data
 import.meta.hot.dispose(async data => { ... })
 import.meta.hot.accept(async acceptHandler)
 import.meta.hot.decline() // TODO
+import.meta.hot.catch(async errorHandler) // MAYBE
 // and that's all
 ~~~
 
-TODO finish docs
+Accept handlers gives a better control to HMR runtime over the application of an update. It can discriminate between errors that happens between module init (i.e. running the module's code) and errors that happens in HMR management code (i.e. accept handlers).
+
+Also, having them async gives them more power. For example, a handler can let a component finish an async cleanup phase before replacing it with a new instance.
+
+This gives us better error reporting overall.
+
+TODO finish...
