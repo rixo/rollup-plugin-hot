@@ -5,27 +5,20 @@ const el = document.createElement('pre')
 
 // el.innerHTML = `Hello ${B(a)}`
 B(a).then(x => {
-  el.innerHTML = `Hello ${x}`
+  el.innerHTML = `Hello ${x}!!!`
 })
 
 document.body.append(el)
 
-// throw new Error()
+// throw new Error('boom')
 
-// Funnily, this works:
-//
-// import('./a')
-// module.meta.hot.accept()
-// module.meta.hot.dispose(() => {
-//   el.remove()
-// })
-
-// import.meta.hot.catch(err => {
-//   throw err
-// })
+if (import.meta.hot.data) {
+  const { el } = import.meta.hot.data
+  el.remove()
+}
 
 import.meta.hot.accept()
 
-import.meta.hot.dispose(() => {
-  el.remove()
+import.meta.hot.dispose(data => {
+  data.el = el
 })
