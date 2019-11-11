@@ -166,21 +166,29 @@ module.hot.decline() // reject any update that touches this module
 // plus a whole lot more of other things
 ~~~
 
+As far as I can tell, Parcel implements a subset of this (`accept`, `dispose`, and status). My guess is that they took what was needed for compatibility of React hot loader or something like this but, truly, I don't know.
+
 What this plugin currently implements is this:
 
 ~~~js
 const previousDisposeData = import.meta.hot.data
 import.meta.hot.dispose(async data => { ... })
 import.meta.hot.accept(async acceptHandler)
-import.meta.hot.decline() // TODO
-import.meta.hot.catch(async errorHandler) // MAYBE
+import.meta.hot.decline() // MAYBE
+import.meta.hot.catch(async errorHandler) // DUNNO
 // and that's all
 ~~~
 
-Accept handlers gives a better control to HMR runtime over the application of an update. It can discriminate between errors that happens between module init (i.e. running the module's code) and errors that happens in HMR management code (i.e. accept handlers).
+We want to use `import.meta` because it's close to the [proposed standard](https://github.com/tc39/proposal-import-meta/#importmeta), and that's probably what you want if you're using Rollup.
 
-Also, having them async gives them more power. For example, a handler can let a component finish an async cleanup phase before replacing it with a new instance.
+This plugin differs from Webpack regarding accept handlers (i.e. callbacks to `module.hot.accept(callback)`). Webpack only runs the callback when there is an error during module update (i.e. they are error handlers), whereas this plugin runs a module's accept handler whenever the module is updated.
 
-This gives us better error reporting overall.
+My rationale is that accept handlers gives a better control to the HMR client (runtime) over the application of an update. It lets it distinguish between errors that happens during module init (i.e. app code) of those that happens in accept handlers (i.e. HMR specific code).
 
-TODO finish...
+Furthermore, allowing the handlers to be async gives them more power. For example, a handler can let a component finish an async cleanup phase before replacing it with a new instance. And if that goes catastrophically bad, the HMR client can catch the error and take the most appropriate measures regarding HMR state, full reload, and reporting. If that does not go bad, we still get the "Up to date" signal when the update has really been completely applied.
+
+This gives us better error management & reporting capability overall.
+
+Maybe `decline` and/or `catch` would make sense too, but I'm not so sure.
+
+The plugin already offers a compatibility layer for Nollup with the `compatNollup` option, that transforms code intended for this hot API so that it can be run by Nollup. It makes sense because Nollup is intended to run Rollup config files, of which this plugin could be a part. So a project might want to run both at different times. Or switch from one to the other at some point.
