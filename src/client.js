@@ -3,7 +3,7 @@ import ErrorOverlay from './overlay'
 import * as log from './log'
 import { applyUpdate, flush } from './hot'
 
-export default ({ port = 38670, reload: reloadOption = true }) => {
+export default ({ host, port = 38670, reload: reloadOption = true }) => {
   const autoAccept = true
 
   const reloadOn = reloadOption
@@ -17,7 +17,7 @@ export default ({ port = 38670, reload: reloadOption = true }) => {
 
   let deferredFullReload = false
 
-  const wsUrl = `${location.hostname}:${port}`
+  const wsUrl = `${host || location.hostname}:${port}`
   const ws = new WebSocket(`ws://${wsUrl}`)
 
   let clearConsole = false
@@ -74,6 +74,30 @@ export default ({ port = 38670, reload: reloadOption = true }) => {
   const applyOptions = opts => {
     clearConsole = opts.clearConsole
 
+    // The entrypoints will use the address of the user's HTTP server (e.g.
+    // localhost), because they're always written to disk where the user expects
+    // them to be, and so they're served by the user controlled server.
+    //
+    // @hot files will either be served by the same server, OR the WS server
+    // in-memory file server (e.g. 127.0.0.1)
+    //
+    // Host name for the user's HTTP server is determined from the URL the user
+    // has typed in their address bar (e.g. localhost).
+    //
+    // Host name of the WS server can be known precisely since, contrary to the
+    // user's server, we control it. The host name is determined automatically
+    // with `getAddress` and is most likely the IP (e.g. 127.0.0.1, even if the
+    // user will more probably type 'localhost').
+    //
+    // Theoretically, the entrypoint files can never change during a normal HMR
+    // session. They're just wrappers to inject HMR runtime and point to the
+    // actual module under in the @hot files.
+    //
+    // Module ids in updates are relative to the domain root.
+    //
+    // In conclusion: we need to resolve module ids from the WS server base URL
+    // if and only if files are served from memory (i.e. WS server).
+    //
     if (opts.inMemory) {
       rootUrl = `${location.protocol}//${wsUrl}/`
     }
