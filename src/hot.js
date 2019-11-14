@@ -67,6 +67,9 @@ export const flush = serial(async function doFlush() {
   const moduleErrors = []
   const acceptErrors = []
 
+  // do all reload/rerun after dispose phase
+  const reloadQueue = []
+
   // for (const { id, reload, rerun } of currentQueue) {
   for (const { id, reload: realReload, rerun } of currentQueue) {
     // TODO rerun is implemented as reload for now, short of a better solution
@@ -80,34 +83,44 @@ export const flush = serial(async function doFlush() {
       if (reload) {
         forgetDeps(id)
       }
+      // aligned with Webpack:
+      // - module.hot.data is undefined on initial module load
+      // - module.hot.data defaults to {} after a HMR update, even if the
+      //   module has no dispose handlers
+      state.data = {}
     }
     if (typeof disposeCb === 'function') {
-      state.data = {}
       await disposeCb(state.data)
     }
     if (reload) {
-      try {
-        await System.reload(id)
-        const error = getError(id)
-        if (error) {
-          moduleErrors.push({ id, error })
-        } else {
-          if (typeof acceptCb === 'function') {
-            try {
-              await acceptCb()
-            } catch (error) {
-              acceptErrors.push({ id, error })
+      reloadQueue.push(async () => {
+        try {
+          await System.reload(id)
+          const error = getError(id)
+          if (error) {
+            moduleErrors.push({ id, error })
+          } else {
+            if (typeof acceptCb === 'function') {
+              try {
+                await acceptCb()
+              } catch (error) {
+                acceptErrors.push({ id, error })
+              }
             }
           }
+        } catch (error) {
+          moduleErrors.push({ id, error })
         }
-      } catch (error) {
-        moduleErrors.push({ id, error })
-      }
+      })
     } else if (rerun) {
       throw new Error('TODO')
     } else {
       System.delete(id)
     }
+  }
+
+  for (const reload of reloadQueue) {
+    await reload()
   }
 
   const total = moduleErrors.length + acceptErrors.length
