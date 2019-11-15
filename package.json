@@ -1,7 +1,7 @@
 {
   "name": "rollup-plugin-hot",
   "version": "0.0.4-2",
-  "main": "lib/hmr.js",
+  "main": "index.js",
   "author": "rixo <rixo@rixo.fr>",
   "license": "MIT",
   "keywords": [
