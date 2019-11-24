@@ -16,7 +16,7 @@
     "sirv-cli": "^0.4.4"
   },
   "scripts": {
-    "clean": "rm -r public/bundle*",
+    "clean": "rm -rf public/bundle* && rm -rf public/build/",
     "build": "rollup -c",
     "autobuild": "rollup -c -w",
     "dev": "run-p start:dev autobuild",
