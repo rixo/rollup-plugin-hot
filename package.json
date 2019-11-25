@@ -1,6 +1,6 @@
 {
   "name": "rollup-plugin-hot",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "main": "index.js",
   "author": "rixo <rixo@rixo.fr>",
   "license": "MIT",
