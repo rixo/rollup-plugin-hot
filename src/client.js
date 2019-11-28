@@ -174,7 +174,9 @@ export default ({ host, port = 38670, reload: reloadOption = true }) => {
       .map(name => System.resolve(name, rootUrl))
       .filter(id => {
         if (!System.has(id)) {
-          log.warn(`Detected change to unknown module: ${id}`)
+          // no warning: it can happen with dynamic import() that rollup bundles
+          // files that the browser doesn't load
+          //   log.warn(`Detected change to unknown module: ${id}`)
           return false
         }
         return System.has(id)

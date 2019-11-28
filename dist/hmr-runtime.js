@@ -1500,7 +1500,9 @@
         .map(name => System.resolve(name, rootUrl))
         .filter(id => {
           if (!System.has(id)) {
-            warn(`Detected change to unknown module: ${id}`);
+            // no warning: it can happen with dynamic import() that rollup bundles
+            // files that the browser doesn't load
+            //   log.warn(`Detected change to unknown module: ${id}`)
             return false
           }
           return System.has(id)
