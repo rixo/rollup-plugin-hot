@@ -3,7 +3,7 @@
   "version": "0.0.11",
   "main": "index.js",
   "author": "rixo <rixo@rixo.fr>",
-  "license": "MIT",
+  "license": "ISC",
   "keywords": [
     "rollup",
     "rollup-plugin",

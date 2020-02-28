@@ -192,3 +192,7 @@ This gives us better error management & reporting capability overall.
 Maybe `decline` and/or `catch` would make sense too, but I'm not so sure.
 
 The plugin already offers a compatibility layer for Nollup with the `compatNollup` option, that transforms code intended for this hot API so that it can be run by Nollup. It makes sense because Nollup is intended to run Rollup config files, of which this plugin could be a part. So a project might want to run both at different times. Or switch from one to the other at some point.
+
+## License
+
+[ISC](LICENSE)
