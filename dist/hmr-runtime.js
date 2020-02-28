@@ -1336,7 +1336,12 @@
 
   const clear = console.clear.bind(console);
 
-  var createWebSocketClient = ({ host, port = 38670, reload: reloadOption = true }) => {
+  var createWebSocketClient = ({
+    ws: useWebSocket,
+    host,
+    port = 38670,
+    reload: reloadOption = true,
+  }) => {
 
     const reloadOn = reloadOption
       ? {
@@ -1350,7 +1355,6 @@
     let deferredFullReload = false;
 
     const wsUrl = `${host || location.hostname}:${port}`;
-    const ws = new WebSocket(`ws://${wsUrl}`);
 
     let clearConsole = false;
     let rootUrl;
@@ -1549,7 +1553,7 @@
       return applyAccepted(accepted).catch(handleApplyAcceptError)
     };
 
-    ws.onmessage = function(e) {
+    const onMessage = e => {
       const hot = JSON.parse(e.data);
 
       if (hot.greeting) {
@@ -1578,6 +1582,14 @@
         }
       }
     };
+
+    if (useWebSocket) {
+      const ws = new WebSocket(`ws://${wsUrl}`);
+      ws.onmessage = onMessage;
+    } else {
+      const source = new EventSource(`//${wsUrl}/~hot`);
+      source.onmessage = onMessage;
+    }
   };
 
   const resolveAddress = () => {
@@ -1585,15 +1597,15 @@
       (typeof window !== 'undefined' && window) ||
       // eslint-disable-next-line no-undef
       (typeof global !== 'undefined' && global);
-    const { host, port } = g[constants_1];
-    return { host, port }
+    const { host, port, ws } = g[constants_1];
+    return { host, port, ws }
   };
 
-  const { host, port } = resolveAddress();
+  const { host, port, ws } = resolveAddress();
 
   installSystemHooks();
 
-  createWebSocketClient({ host, port });
+  createWebSocketClient({ host, port, ws });
 
 }());
 //# sourceMappingURL=hmr-runtime.js.map

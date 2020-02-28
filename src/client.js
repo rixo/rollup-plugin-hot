@@ -3,7 +3,12 @@ import ErrorOverlay from './overlay'
 import * as log from './log'
 import { applyUpdate, flush } from './hot'
 
-export default ({ host, port = 38670, reload: reloadOption = true }) => {
+export default ({
+  ws: useWebSocket,
+  host,
+  port = 38670,
+  reload: reloadOption = true,
+}) => {
   const autoAccept = true
 
   const reloadOn = reloadOption
@@ -18,7 +23,6 @@ export default ({ host, port = 38670, reload: reloadOption = true }) => {
   let deferredFullReload = false
 
   const wsUrl = `${host || location.hostname}:${port}`
-  const ws = new WebSocket(`ws://${wsUrl}`)
 
   let clearConsole = false
   let rootUrl
@@ -222,7 +226,7 @@ export default ({ host, port = 38670, reload: reloadOption = true }) => {
     return applyAccepted(accepted).catch(handleApplyAcceptError)
   }
 
-  ws.onmessage = function(e) {
+  const onMessage = e => {
     const hot = JSON.parse(e.data)
 
     if (hot.greeting) {
@@ -250,5 +254,13 @@ export default ({ host, port = 38670, reload: reloadOption = true }) => {
         overlay.setCompileError(build.formatted || build)
       }
     }
+  }
+
+  if (useWebSocket) {
+    const ws = new WebSocket(`ws://${wsUrl}`)
+    ws.onmessage = onMessage
+  } else {
+    const source = new EventSource(`//${wsUrl}/~hot`)
+    source.onmessage = onMessage
   }
 }
