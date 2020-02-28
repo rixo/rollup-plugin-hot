@@ -22,8 +22,15 @@ export default ({
 
   let deferredFullReload = false
 
-  const wsUrl = `${host.replace('%hostname%', location.hostname) ||
-    location.hostname}:${port}`
+  const resolveHost = () => {
+    const match = /^([^.]+)(.*\.codesandbox\.io)$/.exec(location.hostname)
+    if (match) {
+      return `${match[1]}-${port}${match[2]}`
+    }
+    return `${host || location.hostname}:${port}`
+  }
+
+  const wsUrl = resolveHost()
 
   let clearConsole = false
   let rootUrl
