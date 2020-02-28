@@ -22,7 +22,8 @@ export default ({
 
   let deferredFullReload = false
 
-  const wsUrl = `${host || location.hostname}:${port}`
+  const wsUrl = `${host.replace('%hostname%', location.hostname) ||
+    location.hostname}:${port}`
 
   let clearConsole = false
   let rootUrl
