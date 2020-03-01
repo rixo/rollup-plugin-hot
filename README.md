@@ -66,8 +66,12 @@ export default {
       // Base URL
       baseUrl: '/', // Default: '/'
 
-      // Change the port of the dev server
+      // Change the host / port of the dev server
       port: 12345, // Default: 38670
+      host: '0.0.0.0', // Default: 'localhost'
+      // Prevent from falling back on a random port if the specified one is
+      // already occupied
+      randomPortFallback: false, // Default: true
 
       // Write bundle files in RAM instead of FS and serve them through the dev
       // server. This is obviously more performant but there may be cross domain
@@ -80,12 +84,12 @@ export default {
       // and, most probably, crash more & more. By changing this, you expose
       // yourself to a very broken HMR experience...
       reload: false,
-      // Or fine grained (will be deep merged in the bellow defaults)
+      // Or fine grained (will be deep merged in the defaults bellow)
       reload: {
         moduleError: 'defer',
         acceptError: true,
         error: true,
-      }
+      },
 
       // By default, when an update is not accepted the root modules (i.e. those
       // that have no import parents) are automatically accepted. This means
@@ -94,7 +98,7 @@ export default {
       //
       // Note: an update is "not accepted" when the whole module tree has been
       // traversed, starting from the changed module, up to the root module(s),
-      // and no accept handlers have been registered.
+      // and no accept handlers have been found.
       autoAccept: false, // Default: true
 
       // Clear console after successful HMR updates (Parcel style)
