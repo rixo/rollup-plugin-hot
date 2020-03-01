@@ -9,7 +9,7 @@ export default ({
   port = 38670,
   reload: reloadOption = true,
 }) => {
-  const autoAccept = true
+  let autoAccept = true
 
   const reloadOn = reloadOption
     ? {
@@ -23,6 +23,9 @@ export default ({
   let deferredFullReload = false
 
   const resolveHost = () => {
+    // NOTE special treatment for codesandbox.io: our local port is redirect to
+    // custom domain name [hash]-[port].codesandbox.io (on default HTTPS port,
+    // so we don't need to specifiy it with SSE -- WS not supported)
     const match = /^([^.]+)(.*\.codesandbox\.io)$/.exec(location.hostname)
     if (match) {
       return `${match[1]}-${port}${match[2]}`
@@ -47,7 +50,13 @@ export default ({
     }
   }
 
-  const doReload = () => window.location.reload()
+  const doReload = () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    } else {
+      log.warn('Full reload required')
+    }
+  }
 
   const doFullReload = (flag, msg) => {
     if (flag === 'defer') {
@@ -90,7 +99,7 @@ export default ({
     // localhost), because they're always written to disk where the user expects
     // them to be, and so they're served by the user controlled server.
     //
-    // @hot files will either be served by the same server, OR the WS server
+    // @hot files will either be served by the same server, OR the hot plugin
     // in-memory file server (e.g. 127.0.0.1)
     //
     // Host name for the user's HTTP server is determined from the URL the user
@@ -112,6 +121,10 @@ export default ({
     //
     if (opts.inMemory) {
       rootUrl = `${location.protocol}//${wsUrl}/`
+    }
+
+    if (opts.hasOwnProperty('autoAccept')) {
+      autoAccept = opts.autoAccept
     }
 
     if (opts.reload === false) {
