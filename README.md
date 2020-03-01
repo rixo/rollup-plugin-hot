@@ -84,11 +84,24 @@ export default {
       // and, most probably, crash more & more. By changing this, you expose
       // yourself to a very broken HMR experience...
       reload: false,
-      // Or fine grained (will be deep merged in the defaults bellow)
+      // Or fine grained (will be deep merged in the defaults bellow).
+      // 'defer' means the reload will happen on the next HMR update.
       reload: {
+        // When an HMR update bubbles up beyond an entry point without finding
+        // an accept handler
+        unaccepted: true,
+        // Errors during module initialization (i.e. in your code)
         moduleError: 'defer',
+        // HMR specific errors (i.e. errors that happens in HMR accept handlers)
         acceptError: true,
+        // Other errors during application of hot update (i.e. most probably in
+        // my code -- this plugin)
         error: true,
+        // When connection to HMR server is lost, then resumes. This typically
+        // means that you've restarted Rollup. HMR could theoretically resume
+        // and work correctly, provided nothing has changed on the server (but
+        // why restart Rollup if nothing has changed? hence defaults to reload).
+        reconnect: true,
       },
 
       // By default, when an update is not accepted the root modules (i.e. those

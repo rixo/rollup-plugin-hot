@@ -91,6 +91,7 @@ export default ({
   const reloadModule = msg => doFullReload(reloadOn.moduleError, msg)
   const reloadAccept = msg => doFullReload(reloadOn.acceptError, msg)
   const reloadError = msg => doFullReload(reloadOn.error, msg)
+  const reloadReconnect = msg => doFullReload(reloadOn.reconnect, msg)
 
   const applyOptions = opts => {
     clearConsole = opts.clearConsole
@@ -163,10 +164,10 @@ export default ({
         for (const { id, error } of errors.module) {
           log.error(`Error during reloaded module init: ${id}\n`, error)
         }
-        const reload = reloadModule('Error during reloaded module init')
+        const reloading = reloadModule('Error during reloaded module init')
         // !reload: no overlay if reload has been triggered
         // deferredFullReload: overlay would be tro disruptive if reload=false
-        if (!reload && deferredFullReload) {
+        if (!reloading && deferredFullReload) {
           for (const { id, error } of errors.module) {
             overlay.addError(error, unresolve(id))
           }
@@ -177,11 +178,11 @@ export default ({
         for (const { id, error } of errors.accept) {
           log.error(`Failed to accept update to module ${id}\n`, error)
         }
-        const reload = reloadAccept('Failed to accept update')
+        const reloading = reloadAccept('Failed to accept update')
         // !error.module: don't mix with module errors; module errors are
         // displayed first because the accept error is probably a consequence
         // of the module error
-        if (!reload && deferredFullReload && !errors.module) {
+        if (!reloading && deferredFullReload && !errors.module) {
           for (const { id, error } of errors.accept) {
             overlay.addError(error, unresolve(id))
           }
@@ -220,8 +221,8 @@ export default ({
 
   const handleApplyAcceptError = err => {
     log.error((err && err.stack) || err)
-    const reload = reloadError('Failed to apply update')
-    if (!reload) {
+    const reloading = reloadError('Failed to apply update')
+    if (!reloading) {
       overlay.addError(err)
     }
   }
@@ -261,8 +262,6 @@ export default ({
         return
       }
 
-      applyOptions(hot.greeting)
-
       if (tethered) {
         // getting greated again means the server has been restarted. although
         // HMR would resume updating (with SSE), anything could have happened
@@ -270,14 +269,15 @@ export default ({
         // (otherwise, why the Rollup restart?)... let's be conservative and do
         // a full reload (would love to HOT reload everything to showcase
         // SystemJS power but that's kind of out of scope for now)
-        log.log('Server is back: reloading...')
-        doReload()
-        return
-      } else {
-        tethered = true
-        // log last: "Enabled" means we're up and running
-        log.log('Enabled')
+        const reloading = reloadReconnect('Server is back')
+        if (reloading) return
       }
+
+      applyOptions(hot.greeting)
+
+      tethered = true
+      // log last: "Enabled" means we're up and running
+      log.log('Enabled')
     }
 
     if (hot.status) {
