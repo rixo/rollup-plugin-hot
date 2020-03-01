@@ -27,7 +27,7 @@ export default ({
     if (match) {
       return `${match[1]}-${port}${match[2]}`
     }
-    return `${host || location.hostname}:${port}`
+    return `${host && host != '0.0.0.0' ? host : location.hostname}:${port}`
   }
 
   const wsUrl = resolveHost()
