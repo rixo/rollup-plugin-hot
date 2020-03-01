@@ -247,13 +247,37 @@ export default ({
     return applyAccepted(accepted).catch(handleApplyAcceptError)
   }
 
+  let tethered = false
+
   const onMessage = e => {
     const hot = JSON.parse(e.data)
 
     if (hot.greeting) {
+      // was waiting for an update before reload, and server has restarted...
+      // => reload!
+      if (deferredFullReload) {
+        log.log('Reloading...')
+        doReload()
+        return
+      }
+
       applyOptions(hot.greeting)
-      // log last: "Enabled" means we're up and running
-      log.log('Enabled')
+
+      if (tethered) {
+        // getting greated again means the server has been restarted. although
+        // HMR would resume updating (with SSE), anything could have happened
+        // when the server was off and it's most likely something _did_ happen
+        // (otherwise, why the Rollup restart?)... let's be conservative and do
+        // a full reload (would love to HOT reload everything to showcase
+        // SystemJS power but that's kind of out of scope for now)
+        log.log('Server is back: reloading...')
+        doReload()
+        return
+      } else {
+        tethered = true
+        // log last: "Enabled" means we're up and running
+        log.log('Enabled')
+      }
     }
 
     if (hot.status) {
@@ -283,5 +307,11 @@ export default ({
   } else {
     const source = new EventSource(`//${wsUrl}/~hot`)
     source.onmessage = onMessage
+    source.onerror = () => {
+      log.error('Connection lost')
+      // e.preventDefault()
+      // ignore subsequent errors (will reload when connection resumes)
+      source.onerror = () => {}
+    }
   }
 }

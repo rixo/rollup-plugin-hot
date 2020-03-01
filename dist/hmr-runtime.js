@@ -1342,6 +1342,7 @@
     port = 38670,
     reload: reloadOption = true,
   }) => {
+    let autoAccept = true;
 
     const reloadOn = reloadOption
       ? {
@@ -1355,6 +1356,9 @@
     let deferredFullReload = false;
 
     const resolveHost = () => {
+      // NOTE special treatment for codesandbox.io: our local port is redirect to
+      // custom domain name [hash]-[port].codesandbox.io (on default HTTPS port,
+      // so we don't need to specifiy it with SSE -- WS not supported)
       const match = /^([^.]+)(.*\.codesandbox\.io)$/.exec(location.hostname);
       if (match) {
         return `${match[1]}-${port}${match[2]}`
@@ -1379,7 +1383,13 @@
       }
     };
 
-    const doReload = () => window.location.reload();
+    const doReload = () => {
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      } else {
+        warn('Full reload required');
+      }
+    };
 
     const doFullReload = (flag, msg) => {
       if (flag === 'defer') {
@@ -1409,6 +1419,8 @@
         return false
       }
     };
+
+    const reloadUnaccepted = msg => doFullReload(reloadOn.unaccepted, msg);
     const reloadModule = msg => doFullReload(reloadOn.moduleError, msg);
     const reloadAccept = msg => doFullReload(reloadOn.acceptError, msg);
     const reloadError = msg => doFullReload(reloadOn.error, msg);
@@ -1420,7 +1432,7 @@
       // localhost), because they're always written to disk where the user expects
       // them to be, and so they're served by the user controlled server.
       //
-      // @hot files will either be served by the same server, OR the WS server
+      // @hot files will either be served by the same server, OR the hot plugin
       // in-memory file server (e.g. 127.0.0.1)
       //
       // Host name for the user's HTTP server is determined from the URL the user
@@ -1444,6 +1456,10 @@
         rootUrl = `${location.protocol}//${wsUrl}/`;
       }
 
+      if (opts.hasOwnProperty('autoAccept')) {
+        autoAccept = opts.autoAccept;
+      }
+
       if (opts.reload === false) {
         Object.keys(reloadOn).forEach(key => {
           reloadOn[key] = false;
@@ -1455,10 +1471,13 @@
 
     const applyAccepted = async accepted => {
       if (!accepted) {
-        {
+        if (autoAccept) {
           verbose(
             'Update has not been accepted: hot reloading all the things'
           );
+        } else {
+          reloadUnaccepted('Update has not been accepted');
+          return
         }
       }
 
@@ -1561,13 +1580,37 @@
       return applyAccepted(accepted).catch(handleApplyAcceptError)
     };
 
+    let tethered = false;
+
     const onMessage = e => {
       const hot = JSON.parse(e.data);
 
       if (hot.greeting) {
+        // was waiting for an update before reload, and server has restarted...
+        // => reload!
+        if (deferredFullReload) {
+          log('Reloading...');
+          doReload();
+          return
+        }
+
         applyOptions(hot.greeting);
-        // log last: "Enabled" means we're up and running
-        log('Enabled');
+
+        if (tethered) {
+          // getting greated again means the server has been restarted. although
+          // HMR would resume updating (with SSE), anything could have happened
+          // when the server was off and it's most likely something _did_ happen
+          // (otherwise, why the Rollup restart?)... let's be conservative and do
+          // a full reload (would love to HOT reload everything to showcase
+          // SystemJS power but that's kind of out of scope for now)
+          log('Server is back: reloading...');
+          doReload();
+          return
+        } else {
+          tethered = true;
+          // log last: "Enabled" means we're up and running
+          log('Enabled');
+        }
       }
 
       if (hot.status) {
@@ -1597,6 +1640,12 @@
     } else {
       const source = new EventSource(`//${wsUrl}/~hot`);
       source.onmessage = onMessage;
+      source.onerror = () => {
+        error('Connection lost');
+        // e.preventDefault()
+        // ignore subsequent errors (will reload when connection resumes)
+        source.onerror = () => {};
+      };
     }
   };
 
