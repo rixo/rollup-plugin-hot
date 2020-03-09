@@ -3,6 +3,14 @@ import ErrorOverlay from './overlay'
 import * as log from './log'
 import { applyUpdate, flush } from './hot'
 
+const reloadDefaults = {
+  unaccepted: true,
+  moduleError: 'defer',
+  acceptError: true,
+  error: true,
+  reconnect: true,
+}
+
 export default ({
   ws: useWebSocket,
   host,
@@ -13,9 +21,7 @@ export default ({
 
   const reloadOn = reloadOption
     ? {
-        acceptError: true,
-        moduleError: 'defer',
-        error: true,
+        ...reloadDefaults,
         ...reloadOption,
       }
     : false
