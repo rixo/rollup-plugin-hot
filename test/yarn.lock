@@ -26,8 +26,8 @@ accepts@~1.3.7:
     negotiator "0.6.2"
 
 acorn@^7.0.0, acorn@^7.1.0:
-  version "7.1.0"
-  resolved "https://registry.yarnpkg.com/acorn/-/acorn-7.1.0.tgz#949d36f2c292535da602283586c2477c57eb2d6c"
+  version "7.1.1"
+  resolved "https://registry.yarnpkg.com/acorn/-/acorn-7.1.1.tgz#e35668de0b402f359de515c5482a1ab9f89a69bf"
 
 ansi-regex@^2.0.0:
   version "2.1.1"
@@ -406,6 +406,10 @@ escape-html@~1.0.3:
 escape-string-regexp@^1.0.5:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/escape-string-regexp/-/escape-string-regexp-1.0.5.tgz#1b61c0562190a8dff6ae3bb2cf0200ca130b86d4"
+
+estree-walker@^0.6.1:
+  version "0.6.1"
+  resolved "https://registry.yarnpkg.com/estree-walker/-/estree-walker-0.6.1.tgz#53049143f40c6eb918b23671d1fe3219f3a1b362"
 
 etag@~1.8.1:
   version "1.8.1"
@@ -1378,11 +1382,18 @@ rimraf@^2.6.1:
     glob "^7.1.3"
 
 "rollup-plugin-hot@file:..":
-  version "0.0.3"
+  version "0.0.14"
   dependencies:
     cors "^2.8.5"
     express "^4.17.1"
+    rollup-pluginutils "^2.8.2"
     ws "^7.1.2"
+
+rollup-pluginutils@^2.8.2:
+  version "2.8.2"
+  resolved "https://registry.yarnpkg.com/rollup-pluginutils/-/rollup-pluginutils-2.8.2.tgz#72f2af0748b592364dbd3389e600e5a9444a351e"
+  dependencies:
+    estree-walker "^0.6.1"
 
 rollup@^1.25.1:
   version "1.25.1"
