@@ -39,16 +39,15 @@ export const createHotContext = id => getHotState(id)
 const invalidate = (id, reload = false, rerun = true) => {
   const item = queueMap[id]
   if (item) {
-    queue.splice(item.index, 1)
-    item.index = queue.length
     if (reload) {
       item.reload = true
     } else if (rerun) {
       item.rerun = true
     }
+    queue.splice(queue.indexOf(item), 1)
     queue.push(item)
   } else {
-    const item = { index: queue.length, id, reload, rerun }
+    const item = { id, reload, rerun }
     queueMap[id] = item
     queue.push(item)
   }

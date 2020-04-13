@@ -5,7 +5,7 @@ const errors = {}
 const getImporterEntry = id => {
   const existing = importersMap[id]
   if (!existing) {
-    return (importersMap[id] = [])
+    return (importersMap[id] = new Set())
   }
   return existing
 }
@@ -21,7 +21,7 @@ export const setDeps = (err, id, deps) => {
     depsMap[id] = deps
     deps.forEach(dep => {
       const entry = getImporterEntry(dep)
-      entry.push(id)
+      entry.add(id)
     })
   }
 }
@@ -33,9 +33,7 @@ export const forgetDeps = id => {
     for (const dep of deps) {
       const importerDeps = importersMap[dep]
       if (!importerDeps) continue
-      const index = importerDeps.indexOf(id)
-      if (index < 0) continue
-      importerDeps.splice(index, 1)
+      importerDeps.delete(id)
     }
   }
 }
