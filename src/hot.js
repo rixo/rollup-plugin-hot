@@ -36,8 +36,8 @@ const getHotState = id => {
 
 export const createHotContext = id => getHotState(id)
 
-const invalidate = (id, reload = false, rerun = true) => {
-  const item = queueMap[id]
+const invalidate = (id, reload = false, rerun = true, from) => {
+  let item = queueMap[id]
   if (item) {
     if (reload) {
       item.reload = true
@@ -47,15 +47,19 @@ const invalidate = (id, reload = false, rerun = true) => {
     queue.splice(queue.indexOf(item), 1)
     queue.push(item)
   } else {
-    const item = { id, reload, rerun }
+    item = { id, reload, rerun }
     queueMap[id] = item
     queue.push(item)
   }
+  if (from != null) {
+    if (!item.changedDeps) item.changedDeps = new Set()
+    item.changedDeps.add(from)
+  }
 }
 
-const scheduleRerun = id => invalidate(id, false, true)
+const scheduleRerun = (id, from) => invalidate(id, false, true, from)
 
-const scheduleReload = id => invalidate(id, true)
+const scheduleReload = (id, from) => invalidate(id, true, true, from)
 
 export const flush = serial(async function doFlush() {
   const currentQueue = queue
@@ -70,7 +74,7 @@ export const flush = serial(async function doFlush() {
   const reloadQueue = []
 
   // for (const { id, reload, rerun } of currentQueue) {
-  for (const { id, reload: realReload, rerun } of currentQueue) {
+  for (const { id, reload: realReload, rerun, changedDeps } of currentQueue) {
     // TODO rerun is implemented as reload for now, short of a better solution
     const reload = realReload || rerun
     const state = getHotState(id)
@@ -101,7 +105,10 @@ export const flush = serial(async function doFlush() {
           } else {
             if (typeof acceptCb === 'function') {
               try {
-                await acceptCb()
+                await acceptCb({
+                  // changedDeps,
+                  hasChangedDeps: changedDeps && changedDeps.size > 0,
+                })
               } catch (error) {
                 acceptErrors.push({ id, error })
               }
@@ -134,18 +141,17 @@ export const flush = serial(async function doFlush() {
   return { errors }
 })
 
-export const applyUpdate = (id, forceReload = false) => {
+export const applyUpdate = (id, forceReload = false, from = null) => {
   const parentIds = getImporters(id)
 
   if (forceReload) {
-    scheduleReload(id)
+    scheduleReload(id, from)
   } else {
-    invalidate(id)
+    scheduleRerun(id, from)
   }
 
   const accepted = getHotState(id).acceptCallback
   if (accepted) {
-    scheduleRerun(id)
     return true
   }
 
@@ -157,7 +163,7 @@ export const applyUpdate = (id, forceReload = false) => {
   for (const pid of parentIds) {
     // TODO these modules don't need a reload, just refreshing their
     //      bindings + execute again
-    const accepted = applyUpdate(pid)
+    const accepted = applyUpdate(pid, false, id)
     if (!accepted) {
       every = false
     }
