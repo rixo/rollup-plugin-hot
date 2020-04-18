@@ -6,6 +6,11 @@ let queueMap = {}
 
 const hotStates = {}
 
+const globalState = {
+  beforeUpdateCallbacks: {},
+  afterUpdateCallbacks: {},
+}
+
 class HotState {
   // data: undefined
   // acceptCallback: null
@@ -15,12 +20,20 @@ class HotState {
     this.id = id
   }
 
+  dispose(cb) {
+    this.disposeCallback = cb
+  }
+
   accept(cb = true) {
     this.acceptCallback = cb
   }
 
-  dispose(cb) {
-    this.disposeCallback = cb
+  beforeUpdate(cb) {
+    globalState.beforeUpdateCallbacks[this.id] = cb
+  }
+
+  afterUpdate(cb) {
+    globalState.afterUpdateCallbacks[this.id] = cb
   }
 }
 
@@ -73,14 +86,23 @@ export const flush = serial(async function doFlush() {
   // do all reload/rerun after dispose phase
   const reloadQueue = []
 
+  const beforeUpdateCallbacks = Object.values(globalState.beforeUpdateCallbacks)
+  const afterUpdateCallbacks = Object.values(globalState.afterUpdateCallbacks)
+
+  for (const cb of beforeUpdateCallbacks) {
+    await cb()
+  }
+
   // for (const { id, reload, rerun } of currentQueue) {
   for (const { id, reload: realReload, rerun, changedDeps } of currentQueue) {
     // TODO rerun is implemented as reload for now, short of a better solution
     const reload = realReload || rerun
     const state = getHotState(id)
-    const acceptCb = state.acceptCallback
-    const disposeCb = state.disposeCallback
+    const acceptCallback = state.acceptCallback
+    const disposeCallback = state.disposeCallback
     if (reload || rerun) {
+      delete globalState.afterUpdateCallbacks[id]
+      delete globalState.beforeUpdateCallbacks[id]
       delete state.acceptCallback
       delete state.disposeCallback
       if (reload) {
@@ -92,8 +114,8 @@ export const flush = serial(async function doFlush() {
       //   module has no dispose handlers
       state.data = {}
     }
-    if (typeof disposeCb === 'function') {
-      await disposeCb(state.data)
+    if (typeof disposeCallback === 'function') {
+      await disposeCallback(state.data)
     }
     if (reload) {
       reloadQueue.push(async () => {
@@ -103,12 +125,14 @@ export const flush = serial(async function doFlush() {
           if (error) {
             moduleErrors.push({ id, error })
           } else {
-            if (typeof acceptCb === 'function') {
+            const acceptData = {
+              id,
+              // changedDeps,
+              hasChangedDeps: changedDeps && changedDeps.size > 0,
+            }
+            if (typeof acceptCallback === 'function') {
               try {
-                await acceptCb({
-                  // changedDeps,
-                  hasChangedDeps: changedDeps && changedDeps.size > 0,
-                })
+                await acceptCallback(acceptData)
               } catch (error) {
                 acceptErrors.push({ id, error })
               }
@@ -127,6 +151,10 @@ export const flush = serial(async function doFlush() {
 
   for (const reload of reloadQueue) {
     await reload()
+  }
+
+  for (const cb of afterUpdateCallbacks) {
+    await cb()
   }
 
   const total = moduleErrors.length + acceptErrors.length
