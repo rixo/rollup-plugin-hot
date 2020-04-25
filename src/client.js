@@ -18,6 +18,7 @@ export default ({
   reload: reloadOption = true,
 }) => {
   let autoAccept = true
+  let conn
 
   const reloadOn = reloadOption
     ? {
@@ -58,6 +59,10 @@ export default ({
 
   const doReload = () => {
     if (typeof window !== 'undefined') {
+      if (conn) {
+        conn.close()
+        conn = null
+      }
       window.location.reload()
     } else {
       log.warn('Full reload required')
@@ -305,13 +310,24 @@ export default ({
         overlay.setCompileError(build.formatted || build)
       }
     }
+
+    if (hot.reload) {
+      let msg = 'Full reload required'
+      if (hot.reload.reason) {
+        msg += `: ${hot.reload.reason}`
+      }
+      log.log(msg)
+      doReload()
+    }
   }
 
   if (useWebSocket) {
     const ws = new WebSocket(`ws://${wsUrl}`)
+    conn = ws
     ws.onmessage = onMessage
   } else {
     const source = new EventSource(`//${wsUrl}/~hot`)
+    conn = source
     source.onmessage = onMessage
     source.onerror = () => {
       log.error('Connection lost')
