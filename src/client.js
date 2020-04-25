@@ -47,6 +47,15 @@ export default ({
 
   const overlay = ErrorOverlay()
 
+  if (typeof window !== 'undefined') {
+    window.addEventListener('unload', () => {
+      if (conn) {
+        conn.close()
+        conn = null
+      }
+    })
+  }
+
   const unresolve = id => {
     const baseUrl = rootUrl || location.origin + '/'
     const pre = String(id).slice(0, baseUrl.length)
@@ -59,10 +68,6 @@ export default ({
 
   const doReload = () => {
     if (typeof window !== 'undefined') {
-      if (conn) {
-        conn.close()
-        conn = null
-      }
       window.location.reload()
     } else {
       log.warn('Full reload required')
