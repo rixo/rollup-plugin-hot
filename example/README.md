@@ -4,7 +4,7 @@ Usage:
 
 ```bash
 git clone git@github.com:rixo/rollup-plugin-hot.git
-cd rollup-plugin-hot
+cd rollup-plugin-hot/example
 yarn
 yarn dev
 ```

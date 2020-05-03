@@ -28,6 +28,8 @@ Load http://localhost:5000 in your browser.
 
 Edit files in `example/src`.
 
+Open http://localhost:5000/stateful.html for an advanced example on how to implement a stateful HMR adapter.
+
 ## Install
 
 ```bash
