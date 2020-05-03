@@ -30,19 +30,19 @@ Edit files in `example/src`.
 
 ## Install
 
-~~~bash
+```bash
 npm install --dev rollup-plugin-hot
-~~~
+```
 
 Or:
 
-~~~bash
+```bash
 yarn add --dev rollup-plugin-hot
-~~~
+```
 
 ## Config
 
-~~~js
+```js
 export default {
   output: {
     // supports either dir or file
@@ -56,8 +56,7 @@ export default {
     sourcemap: true,
   },
   plugins: [
-    ...
-    hmr({
+    ...hmr({
       // These two are used to map output filenames to URLs, because Rollup
       // knows about filenames but SystemJS knows about URLs.
       //
@@ -122,10 +121,10 @@ export default {
       // Defaults to output.file. Must be under public dir.
       // Only used when output.file is set.
       loaderFile: 'public/bundle.js',
-    })
-  ]
+    }),
+  ],
 }
-~~~
+```
 
 ## How it works
 
@@ -137,7 +136,7 @@ It injects the [SystemJS loader](https://github.com/systemjs/systemjs#2-systemjs
 
 For example, with the following Rollup config:
 
-~~~js
+```js
 input: 'src/main.js',
 output: {
   file: 'public/bundle.js',
@@ -148,11 +147,11 @@ plugins: [
     baseUrl: '/',
   })
 ]
-~~~
+```
 
 The plugin will write only HMR machinery in `public/bundle.js` and add a single import at the end, pointing to the module containing your actual code (in the "@hot bundle" directory):
 
-~~~js
+```js
 // TODO There should be an option not to inject SystemJS loader for people
 //      already using it in their app
 
@@ -161,7 +160,7 @@ The plugin will write only HMR machinery in `public/bundle.js` and add a single 
 ... // HMR runtime
 
 System.import('/bundle.js@hot/main.js')
-~~~
+```
 
 The precise location of the @hot directory changes depending on whether you're using `output.file` (`outputFile.js@hot/`) or `output.dir` (`outputDir/@hot`), and the value of `preserveModules` (entry point renamed to `outputDir/entry@hot.js`) in your Rollup config.
 
@@ -175,26 +174,26 @@ One of the very open question of this implementation is what should the "hot API
 
 In Webpack, it looks like this:
 
-~~~js
+```js
 const previousDisposeData = module.hot.data
 module.hot.dispose(data => { ... }) // run a handler on dispose
 module.hot.accept(errorHandler) // self-accept HMR updates for this module
 module.hot.decline() // reject any update that touches this module
 // plus a whole lot more of other things
-~~~
+```
 
 As far as I can tell, Parcel implements a subset of this (`accept`, `dispose`, and status). My guess is that they took what was needed for compatibility of React hot loader or something like this but, truly, I don't know.
 
 What this plugin currently implements is this:
 
-~~~js
+```js
 const previousDisposeData = import.meta.hot.data
 import.meta.hot.dispose(async data => { ... })
 import.meta.hot.accept(async acceptHandler)
 import.meta.hot.decline() // MAYBE
 import.meta.hot.catch(async errorHandler) // DUNNO
 // and that's all
-~~~
+```
 
 We want to use `import.meta` because it's close to the [proposed standard](https://github.com/tc39/proposal-import-meta/#importmeta), and that's probably what you want if you're using Rollup.
 
@@ -209,6 +208,101 @@ This gives us better error management & reporting capability overall.
 Maybe `decline` and/or `catch` would make sense too, but I'm not so sure.
 
 The plugin already offers a compatibility layer for Nollup with the `compatNollup` option, that transforms code intended for this hot API so that it can be run by Nollup. It makes sense because Nollup is intended to run Rollup config files, of which this plugin could be a part. So a project might want to run both at different times. Or switch from one to the other at some point.
+
+## API
+
+#### import.meta.hot
+
+This is the main object exposing the HMR API. You should test if this object is present before using any other part of the API. If the object is not present, it means that HMR is not currently enabled and any HMR specific code should bail out as fast as possible.
+
+```js
+if (import.meta.hot) {
+  // HMR specific stuff...
+}
+```
+
+Note that `import.meta` is (proposed) standard in ES module and you should need no plugin for an ES module aware environment to handle this code.
+
+#### import.meta.hot.data
+
+This object is used to pass data between the old and new version of a module.
+
+The data are provided by the `dispose` handler (see bellow).
+
+On the first run of a module (i.e. initial load, not a HMR update), this object will be undefined (this is to align with webpack, but it bothers me more and more, so it could very well change in the near future, please don't rely on this -- but ensure you don't read from an undefined object, which is what bothers me...).
+
+#### import.meta.hot.dispose(async data => void)
+
+The dispose function is called when the module is about to be replaced. The handler is passed a data object that you can mutate and that will be available to the new version of the module that is being loaded.
+
+```js
+if (import.meta.hot) {
+  // will be undefined when the first version of the module is initally loaded
+  console.log(import.meta.hot.data)
+
+  // restore previous state, or init to 0
+  const state = (import.meta.hot.data && import.meta.hot.data.value) || 0
+
+  import.meta.hot.dispose(data => {
+    // increment the value on HMR update (for illustration purpose)
+    // NOTE mutate the passed data object
+    data.value = state + 1
+  })
+}
+```
+
+#### import.meta.hot.accept(function|void)
+
+Accepts HMR updates for this module, optionally passing an accept handler.
+
+If a module has an accept handler, then changes to this module won't trigger a full reload. If the module needs specific work to reflect the code change, it is expected to be handled by the provided accept handler function.
+
+The order of execution when a HMR update happens is as follow:
+
+- the old module's `dispose` handler is called
+
+- the new module is executed
+
+- the old module's `accept` handler is called
+
+```js
+// simply accept the HMR update -- just reexecuting the module must be enough to
+// reflect any code change, or this will result in a broken app state
+import.meta.hot.accept()
+
+// in most case, you'll need to pass
+import.meta.hot.accept(({ id, hasChangedDeps }) => {
+  // id is the id of the updated module
+  //
+  // hasChangedDeps will be true if this handler is called because a HMR update
+  // has bubbled up to this module (you cannot conclude that this module has not
+  // changed too, though)
+  //
+  // ... your code to apply the update
+})
+```
+
+#### import.meta.hot.beforeUpdate and import.meta.hot.afterUpdate
+
+Those are global hooks that are called when a HMR update to any module, before the first `dispose` handler, and after the last `accept` handler.
+
+They can be useful to implement some HMR enhancements. For example, you could save the scroll position before the update and restore it after the update. This is not specific to a particular module, yet it could be influenced by any module update, and the scroll is a singleton resource. So this should be implemented in a central location, which can be done with these hooks.
+
+```js
+if (import.meta.hot) {
+  let scrollTopBefore = null
+
+  import.meta.hot.beforeUpdate(() => {
+    scrollTopBefore = document.body.scrollTop
+  })
+
+  import.meta.hot.afterUpdate(() => {
+    requestAnimationFrame(() => {
+      document.body.scrollTop = scrollTopBefore
+    })
+  })
+}
+```
 
 ## License
 
