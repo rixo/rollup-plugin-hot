@@ -13,6 +13,9 @@ overrides:
       browser: true
     globals:
       System: readonly
+  - files: ["example/src/**/*"]
+    env:
+     browser: true
 
 rules:
   # buggy rule... TODO should be disabled in @rixo/eslint-config

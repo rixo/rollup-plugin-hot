@@ -1,35 +1,42 @@
 import hmr from 'rollup-plugin-hot'
 
-const firstIf = (test, array) => (test ? array[0] : array)
+// NOTE we're using the same instance of the HMR server to serve our multiple
+// builds -- this works because they all use the same public directory, and they
+// don't step on each other's toes by trying to write to the same output files
+const hot = hmr({
+  public: 'public',
+  clearConsole: false,
+  inMemory: true,
+})
 
-const hot = true
-
-export default {
-  // input: ['./src/main.js', './src/main2.js'],
-  input: ['./src/main.js'],
-  // it doesn't make sense to generate multiple build formats during dev, it
-  // slows things down & make HMR harder, so this is not supported
-  output: firstIf(hot, [
-    {
+export default [
+  {
+    input: './src/main.js',
+    output: {
       sourcemap: true,
       format: 'iife',
-      file: 'public/bundle.js',
+      file: 'public/build/bundle.js',
     },
-    {
-      sourcemap: 'inline',
-      format: 'umd',
-      file: 'public/bundle.umd.js',
+    // our example contains dynamic imports (because we want to test them with
+    // HMR!), so we need this option to be able to build to an iife
+    inlineDynamicImports: true,
+    plugins: [hot],
+    watch: {
+      clearScreen: false,
     },
-  ]),
-  plugins: [
-    hot &&
-      hmr({
-        public: 'public',
-        clearConsole: false,
-        inMemory: true,
-      }),
-  ],
-  watch: {
-    clearScreen: false,
   },
-}
+
+  // another example
+  {
+    input: './src/stateful/main.js',
+    output: {
+      sourcemap: true,
+      format: 'iife',
+      file: 'public/build/stateful.js',
+    },
+    plugins: [hot],
+    watch: {
+      clearScreen: false,
+    },
+  },
+]
