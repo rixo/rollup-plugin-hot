@@ -28,7 +28,7 @@ Load http://localhost:5000 in your browser.
 
 Edit files in `example/src`.
 
-Open http://localhost:5000/stateful.html for an advanced example on how to implement a stateful HMR adapter.
+Open http://localhost:5000/stateful.html for an advanced example on how to implement a stateful HMR adapter (you'll find more information about this in [./src/example/stateful/README.md](./src/example/stateful/README.md), and comments in the [./src/example/stateful/hmr-adapter.js](./src/example/stateful/hmr-adapter.js) file).
 
 ## Install
 
