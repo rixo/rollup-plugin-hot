@@ -1,4 +1,5 @@
 import hmr from 'rollup-plugin-hot'
+import postcss from 'rollup-plugin-postcss'
 
 // NOTE we're using the same instance of the HMR server to serve our multiple
 // builds -- this works because they all use the same public directory, and they
@@ -35,6 +36,20 @@ export default [
       file: 'public/build/stateful.js',
     },
     plugins: [hot],
+    watch: {
+      clearScreen: false,
+    },
+  },
+
+  // postcss
+  {
+    input: './src/postcss/main.js',
+    output: {
+      sourcemap: true,
+      format: 'iife',
+      file: 'public/build/postcss.js',
+    },
+    plugins: [postcss(), hot],
     watch: {
       clearScreen: false,
     },
