@@ -232,7 +232,10 @@ export default ({
         }
       })
 
-    return allAccepted.length > 0 && allAccepted.every(Boolean)
+    // we're ignoring change to unused modules -- this is needed for no-bundle
+    // settings where we'll be getting events for files that are not currently
+    // loaded in the browser (or even not used in the project)
+    return allAccepted.length === 0 || allAccepted.every(Boolean)
   }
 
   const handleApplyAcceptError = err => {
