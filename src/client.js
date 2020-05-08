@@ -243,8 +243,16 @@ export default ({
     }
   }
 
+  let _changes = []
+  let flushing = false
+
   const processChanges = changes => {
     // TODO handle removed?
+
+    if (flushing) {
+      _changes = [...new Set(changes)]
+      return
+    }
 
     if (deferredFullReload) {
       log.log('Reloading...')
@@ -261,7 +269,16 @@ export default ({
 
     const accepted = acceptChanges(changes)
 
-    return applyAccepted(accepted).catch(handleApplyAcceptError)
+    flushing = true
+
+    return applyAccepted(accepted)
+      .catch(handleApplyAcceptError)
+      .finally(() => {
+        flushing = false
+        const pendingChanges = _changes
+        _changes = []
+        if (pendingChanges.length > 0) processChanges(pendingChanges)
+      })
   }
 
   let tethered = false
