@@ -14,7 +14,7 @@ const reloadDefaults = {
 export default ({
   ws: useWebSocket,
   host,
-  port = 38670,
+  port = 33440,
   reload: reloadOption = true,
 }) => {
   let autoAccept = true

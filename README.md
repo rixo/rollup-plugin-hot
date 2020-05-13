@@ -68,7 +68,7 @@ export default {
       baseUrl: '/', // Default: '/'
 
       // Change the host / port of the dev server
-      port: 12345, // Default: 38670
+      port: 12345, // Default: 33440
       host: '0.0.0.0', // Default: 'localhost'
       // Prevent from falling back on a random port if the specified one is
       // already occupied
