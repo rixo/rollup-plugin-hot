@@ -273,10 +273,10 @@ The order of execution when a HMR update happens is as follow:
 import.meta.hot.accept()
 
 // in most case, you'll need to pass
-import.meta.hot.accept(({ id, hasChangedDeps }) => {
+import.meta.hot.accept(({ id, bubbled }) => {
   // id is the id of the updated module
   //
-  // hasChangedDeps will be true if this handler is called because a HMR update
+  // bubbled will be true if this handler is called because a HMR update
   // has bubbled up to this module (you cannot conclude that this module has not
   // changed too, though)
   //

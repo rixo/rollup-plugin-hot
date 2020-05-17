@@ -128,7 +128,7 @@ export const flush = serial(async function doFlush() {
             const acceptData = {
               id,
               // changedDeps,
-              hasChangedDeps: Boolean(changedDeps && changedDeps.size > 0),
+              bubbled: Boolean(changedDeps && changedDeps.size > 0),
             }
             if (typeof acceptCallback === 'function') {
               try {
