@@ -1,5 +1,5 @@
 import hmr from 'rollup-plugin-hot'
-import postcss from 'rollup-plugin-postcss'
+import postcss from 'rollup-plugin-postcss-hot'
 
 // NOTE we're using the same instance of the HMR server to serve our multiple
 // builds -- this works because they all use the same public directory, and they
