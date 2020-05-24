@@ -355,7 +355,7 @@ export default ({
     conn = source
     source.onmessage = onMessage
     source.onerror = () => {
-      log.error('Connection lost')
+      log.warn('Connection lost')
       // e.preventDefault()
       // ignore subsequent errors (will reload when connection resumes)
       source.onerror = () => {}
