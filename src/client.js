@@ -246,12 +246,27 @@ export default ({
     }
   }
 
+  const processRemoved = removed => {
+    removed
+      .map(name => System.resolve(name, rootUrl))
+      .filter(id => {
+        if (!System.has(id)) {
+          // no warning: it can happen with dynamic import() that rollup bundles
+          // files that the browser doesn't load
+          //   log.warn(`Detected change to unknown module: ${id}`)
+          return false
+        }
+        return System.has(id)
+      })
+      .forEach(id => {
+        System.delete(id)
+      })
+  }
+
   let _changes = []
   let flushing = false
 
   const processChanges = changes => {
-    // TODO handle removed?
-
     if (flushing) {
       _changes = [...new Set(changes)]
       return
@@ -324,9 +339,8 @@ export default ({
       }
     }
 
-    if (hot.changes) {
-      processChanges(hot.changes)
-    }
+    if (hot.forget) processRemoved(hot.forget)
+    if (hot.changes) processChanges(hot.changes)
 
     if (hot.errors) {
       const { build } = hot.errors
