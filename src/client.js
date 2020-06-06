@@ -328,7 +328,7 @@ export default ({
 
       tethered = true
       // log last: "Enabled" means we're up and running
-      log.log('Enabled')
+      log.log('Connected')
     }
 
     if (hot.status) {
