@@ -12,6 +12,7 @@ const reloadDefaults = {
 }
 
 export default ({
+  hot: isHot = true,
   ws: useWebSocket,
   host,
   port = 33440,
@@ -328,7 +329,7 @@ export default ({
 
       tethered = true
       // log last: "Enabled" means we're up and running
-      log.log('Connected')
+      log.log(isHot ? 'Connected' : 'Connected (live reload)')
     }
 
     if (hot.status) {

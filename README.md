@@ -59,10 +59,20 @@ export default {
   },
   plugins: [
     ...hmr({
+      // When false, the plugin will do nothing at all (useful for prod build).
+      enabled: true, // Default: true
+
+      // When false, only the dev server will run. The plugin will not mess with
+      // your config, your bundle, or transform any code. Only reload the
+      // browser when the bundle changes.
+      hot: false, // Default: true
+
       // These two are used to map output filenames to URLs, because Rollup
       // knows about filenames but SystemJS knows about URLs.
       //
       // FS path to public directory
+      // NOTE this is only used to compute URLs from FS paths... see mount
+      // option bellow if you want to serve static content
       public: 'public', // Default: ''
       // Base URL
       baseUrl: '/', // Default: '/'
@@ -73,6 +83,14 @@ export default {
       // Prevent from falling back on a random port if the specified one is
       // already occupied
       randomPortFallback: false, // Default: true
+
+      // Serve additional static content: the key is a FS path, the value is
+      // the base URL. Static content will always be served _after_ files from
+      // the bundle.
+      mount: {
+        public: '/',
+        'relative/path/to/somewhere': '/base-url/',
+      },
 
       // Write bundle files in RAM instead of FS and serve them through the dev
       // server. This is obviously more performant but there may be cross domain

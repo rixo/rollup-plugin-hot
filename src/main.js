@@ -10,12 +10,12 @@ const resolveAddress = () => {
     (typeof window !== 'undefined' && window) ||
     // eslint-disable-next-line no-undef
     (typeof global !== 'undefined' && global)
-  const { host, port, ws } = g[gid]
-  return { host, port, ws }
+  const { host, port, ws, hot } = g[gid]
+  return { host, port, ws, hot }
 }
 
-const { host, port, ws } = resolveAddress()
+const { host, port, ws, hot } = resolveAddress()
 
 installSystemHooks()
 
-createWebSocketClient({ host, port, ws })
+createWebSocketClient({ host, port, ws, hot })
