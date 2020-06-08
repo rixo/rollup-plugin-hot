@@ -10,12 +10,14 @@ const hot = hmr({
   inMemory: true,
 })
 
+const format = process.env.NOLLUP ? 'esm' : 'iife'
+
 export default [
   {
     input: './src/main.js',
     output: {
       sourcemap: true,
-      format: 'iife',
+      format,
       file: 'public/build/bundle.js',
     },
     // our example contains dynamic imports (because we want to test them with
@@ -32,7 +34,7 @@ export default [
     input: './src/stateful/main.js',
     output: {
       sourcemap: true,
-      format: 'iife',
+      format,
       file: 'public/build/stateful.js',
     },
     plugins: [hot],
@@ -46,7 +48,7 @@ export default [
     input: './src/postcss/main.js',
     output: {
       sourcemap: true,
-      format: 'iife',
+      format,
       file: 'public/build/postcss.js',
     },
     plugins: [postcss(), hot],

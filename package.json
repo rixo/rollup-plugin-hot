@@ -34,6 +34,7 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "mime-types": "^2.1.26",
+    "rollup-plugin-hot-nollup": "^0.0.1",
     "rollup-pluginutils": "^2.8.2",
     "ws": "^7.1.2"
   },
