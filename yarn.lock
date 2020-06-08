@@ -1344,10 +1344,10 @@ rollup-plugin-commonjs@^10.1.0:
     resolve "^1.11.0"
     rollup-pluginutils "^2.8.1"
 
-rollup-plugin-hot-nollup@^0.0.1:
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/rollup-plugin-hot-nollup/-/rollup-plugin-hot-nollup-0.0.1.tgz#c594ceb6da8e55f72ccbb610032171200bc18b46"
-  integrity sha512-9mfmnAbHVhjQn9HWfLIP163qNhvyNKIBc057r9Kgc0lw/pxB7XJh449wShBTp9OcRmCYoiZMWGOtx/Z0CCmoDQ==
+rollup-plugin-hot-nollup@^0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/rollup-plugin-hot-nollup/-/rollup-plugin-hot-nollup-0.1.0.tgz#b36bd30f383cc2b5d882c6980135ed86a0ff3747"
+  integrity sha512-TTjkQrQHBndvF7rGAvhJ9ul+uPCVITpXvrvyDlebsVOVcUKyDrz4/3BysGoMIGWqsqrHlzc1BLadQQIEA+k4tw==
   dependencies:
     "@rollup/pluginutils" "^3.1.0"
 
