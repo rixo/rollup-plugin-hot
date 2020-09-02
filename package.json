@@ -19,7 +19,8 @@
   },
   "files": [
     "lib",
-    "dist"
+    "dist",
+    "assets"
   ],
   "devDependencies": {
     "@rixo/eslint-config": "^0.7.0-alpha.7",
@@ -32,8 +33,11 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "execa": "^4.0.3",
     "express": "^4.17.1",
+    "express-http-proxy": "^1.6.2",
     "mime-types": "^2.1.26",
+    "open": "^7.2.1",
     "rollup-plugin-hot-nollup": "^0.1.0",
     "rollup-pluginutils": "^2.8.2",
     "ws": "^7.1.2"

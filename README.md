@@ -84,11 +84,34 @@ export default {
       // already occupied
       randomPortFallback: false, // Default: true
 
+      // Opens the dev server in a new browser tab.
+      // If Chrome is available on macOS, an attempt will be made to
+      // reuse an existing browser tab. Any installed browser may also be specified.
+      // E.g., “chrome”, “firefox”, “brave”. Set “none” or `false` to disable.
+      open: 'firefox', // Default: 'default'
+
+      // Page to navigate to when opening the browser.
+      // Will not do anything if open=false.
+      // Remember to start with a slash.
+      openPage: '/different/page', // Default: baseUrl
+
+      // The hostname where the browser tab will be open.
+      openHostname: 'localhost', // Default: host part of server address
+
+      // Define different paths that should be proxied, and where they should be proxied to.
+      // See https://github.com/villadora/express-http-proxy for configuration options.
+      proxy: {
+        // Short form:
+        '/api/01': 'https://pokeapi.co/api/v1/',
+        // With options:
+        '/api/02': ['https://pokeapi.co/api/v2/', { proxyReqPathResolver(req) { /* ... */ } }],
+      },
+
       // Serve additional static content: the key is a FS path, the value is
       // the base URL. Static content will always be served _after_ files from
       // the bundle.
       mount: {
-        public: '/',
+        public: '/',  
         'relative/path/to/somewhere': '/base-url/',
       },
 
