@@ -84,6 +84,20 @@ export default {
       // already occupied
       randomPortFallback: false, // Default: true
 
+      // Opens the dev server in a new browser tab if set.
+      // If Chrome is available on macOS, an attempt will be made to
+      // reuse an existing browser tab. Any installed browser may also be specified.
+      // E.g., “default“, “chrome”, “firefox”, “brave”. Set “none” or `false` to disable.
+      open: 'default', // Default: false
+
+      // Page to navigate to when opening the browser.
+      // Will not do anything if open=false.
+      // Remember to start with a slash.
+      openPage: '/different/page', // Default: baseUrl
+
+      // The hostname where the browser tab will be open.
+      openHostname: 'localhost', // Default: host part of server address
+
       // Serve additional static content: the key is a FS path, the value is
       // the base URL. Static content will always be served _after_ files from
       // the bundle.
