@@ -94,9 +94,9 @@ export default {
       // Will not do anything if open=false.
       // Remember to start with a slash.
       openPage: '/different/page', // Default: baseUrl
-
-      // The hostname where the browser tab will be open.
-      openHostname: 'localhost', // Default: host part of server address
+      // The hostname & port where the browser tab will be open.
+      openHost: 'localhost', // Default: HMR server host
+      openPort: '33000', // Default: HMR server port
 
       // Serve additional static content: the key is a FS path, the value is
       // the base URL. Static content will always be served _after_ files from

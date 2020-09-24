@@ -8,6 +8,8 @@ const hot = hmr({
   public: 'public',
   clearConsole: false,
   inMemory: true,
+  open: 'default',
+  openPort: 5000,
 })
 
 const format = process.env.NOLLUP ? 'esm' : 'iife'
