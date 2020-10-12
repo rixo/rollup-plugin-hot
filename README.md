@@ -98,6 +98,24 @@ export default {
       openHost: 'localhost', // Default: HMR server host
       openPort: '33000', // Default: HMR server port
 
+      // Define different paths that should be proxied, and where they should be proxied to.
+      // See https://github.com/villadora/express-http-proxy for configuration options.
+      //
+      // Path Propagation:
+      // { "/a": "http://localhost" }
+      // - /a   => http://localhost
+      // - /a/b => http://localhost/b
+      //
+      // { "/a": "http://localhost/x" }
+      // - /a   => http://localhost/x
+      // - /a/b => http://localhost/x/b
+      proxy: {
+        // Short form:
+        '/api/01': 'https://pokeapi.co/api/v1',
+        // With options:
+        '/api/02': ['https://pokeapi.co/api/v2', { proxyReqPathResolver(req) { /* ... */ } }],
+      },
+
       // Serve additional static content: the key is a FS path, the value is
       // the base URL. Static content will always be served _after_ files from
       // the bundle.
