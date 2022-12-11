@@ -34,7 +34,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "execa": "^4.0.3",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-http-proxy": "^1.6.2",
     "mime-types": "^2.1.26",
     "open": "^7.2.1",
